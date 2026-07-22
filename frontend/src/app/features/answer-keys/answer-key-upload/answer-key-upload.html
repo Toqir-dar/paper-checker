@@ -1,0 +1,38 @@
+<div class="page-header">
+  <div>
+    <h1>Upload Answer Key</h1>
+    <p class="page-header__subtitle">
+      Upload a scanned PDF or photo of an answer key or textbook page — a vision
+      model reads it and extracts the MCQ answers, reference answers, and grading
+      rubric automatically.
+    </p>
+  </div>
+  <a routerLink="/answer-keys" class="btn btn-ghost">Cancel</a>
+</div>
+
+@if (errorMessage()) {
+  <div class="alert alert-danger">{{ errorMessage() }}</div>
+}
+
+<div class="card">
+  <div class="field">
+    <label class="label" for="file">Answer key file (PDF or image)</label>
+    <input id="file" type="file" accept=".pdf,image/*" (change)="onFileSelected($event)" />
+  </div>
+
+  @if (uploading()) {
+    <p class="text-muted">Reading the document — this can take up to a minute…</p>
+  }
+
+  <div class="row gap-3">
+    <button
+      type="button"
+      class="btn btn-primary"
+      [disabled]="uploading() || !selectedFile()"
+      (click)="submit()"
+    >
+      {{ uploading() ? 'Processing…' : 'Upload and extract' }}
+    </button>
+    <a routerLink="/answer-keys" class="btn btn-ghost">Cancel</a>
+  </div>
+</div>

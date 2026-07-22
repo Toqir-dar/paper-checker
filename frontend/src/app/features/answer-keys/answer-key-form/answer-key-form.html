@@ -1,0 +1,130 @@
+<div class="page-header">
+  <div>
+    <h1>New Answer Key</h1>
+    <p class="page-header__subtitle">
+      Define the correct MCQ options and grading rubrics for free-text questions.
+    </p>
+  </div>
+  <a routerLink="/answer-keys" class="btn btn-ghost">Cancel</a>
+</div>
+
+@if (errorMessage()) {
+  <div class="alert alert-danger">{{ errorMessage() }}</div>
+}
+
+<form [formGroup]="form" (ngSubmit)="submit()" class="stack gap-4">
+  <div class="card">
+    <div class="card__title">Details</div>
+    <div class="field">
+      <label class="label" for="title">Title</label>
+      <input id="title" class="input" formControlName="title" placeholder="e.g. Midterm Exam" />
+      @if (form.controls.title.invalid && form.controls.title.touched) {
+        <span class="field-error">Title is required.</span>
+      }
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="row spread">
+      <div class="card__title">Multiple-choice questions</div>
+      <button type="button" class="btn btn-secondary btn-sm" (click)="addMcqAnswer()">+ Add MCQ</button>
+    </div>
+
+    @if (mcqAnswers.length === 0) {
+      <p class="text-muted">No MCQ questions added yet.</p>
+    }
+
+    @for (mcq of mcqAnswers.controls; track $index) {
+      <div class="form-section" [formGroup]="mcq">
+        <div class="form-section__header">
+          <strong>Question {{ $index + 1 }}</strong>
+          <button type="button" class="btn btn-ghost btn-sm" (click)="removeMcqAnswer($index)">Remove</button>
+        </div>
+        <div class="grid-2">
+          <div class="field">
+            <label class="label">Question ID</label>
+            <input class="input" formControlName="question_id" placeholder="q1" />
+          </div>
+          <div class="field">
+            <label class="label">Correct option</label>
+            <input class="input" formControlName="correct_option" placeholder="B" />
+          </div>
+        </div>
+        <div class="field" style="max-width: 10rem;">
+          <label class="label">Points</label>
+          <input class="input" type="number" formControlName="points" min="0" step="0.5" />
+        </div>
+      </div>
+    }
+  </div>
+
+  <div class="card">
+    <div class="row spread">
+      <div class="card__title">Free-text questions</div>
+      <button type="button" class="btn btn-secondary btn-sm" (click)="addTextAnswer()">+ Add question</button>
+    </div>
+
+    @if (textAnswers.length === 0) {
+      <p class="text-muted">No free-text questions added yet.</p>
+    }
+
+    @for (textAnswer of textAnswers.controls; track $index) {
+      <div class="form-section" [formGroup]="textAnswer">
+        <div class="form-section__header">
+          <strong>Question {{ $index + 1 }}</strong>
+          <button type="button" class="btn btn-ghost btn-sm" (click)="removeTextAnswer($index)">Remove</button>
+        </div>
+
+        <div class="field">
+          <label class="label">Question ID</label>
+          <input class="input" formControlName="question_id" placeholder="q2" />
+        </div>
+        <div class="field">
+          <label class="label">Reference answer</label>
+          <textarea class="textarea" formControlName="reference_answer"
+            placeholder="The model answer the LLM will compare student responses against"></textarea>
+        </div>
+
+        <div class="row spread" style="margin-bottom: var(--space-2);">
+          <span class="label">Rubric criteria</span>
+          <button type="button" class="btn btn-ghost btn-sm" (click)="addRubricCriterion(textAnswer)">
+            + Add criterion
+          </button>
+        </div>
+
+        @if (rubricOf(textAnswer).length === 0) {
+          <p class="text-muted">No rubric criteria yet — add at least one.</p>
+        }
+
+        @for (criterion of rubricOf(textAnswer).controls; track $index) {
+          <div class="row gap-3" [formGroup]="criterion" style="margin-bottom: var(--space-2);">
+            <input class="input" formControlName="description" placeholder="Explains the core concept clearly" />
+            <input
+              class="input"
+              style="max-width: 8rem;"
+              type="number"
+              formControlName="max_points"
+              min="0"
+              step="0.5"
+              placeholder="Max pts"
+            />
+            <button
+              type="button"
+              class="btn btn-ghost btn-sm"
+              (click)="removeRubricCriterion(textAnswer, $index)"
+            >
+              Remove
+            </button>
+          </div>
+        }
+      </div>
+    }
+  </div>
+
+  <div class="row gap-3">
+    <button type="submit" class="btn btn-primary" [disabled]="submitting()">
+      {{ submitting() ? 'Saving…' : 'Save answer key' }}
+    </button>
+    <a routerLink="/answer-keys" class="btn btn-ghost">Cancel</a>
+  </div>
+</form>

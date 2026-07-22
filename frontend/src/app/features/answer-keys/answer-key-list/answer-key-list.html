@@ -1,0 +1,46 @@
+<div class="page-header">
+  <div>
+    <h1>Answer Keys</h1>
+    <p class="page-header__subtitle">
+      Create an answer key, then collect and grade student submissions against it.
+    </p>
+  </div>
+  <div class="row gap-2">
+    <a routerLink="/answer-keys/upload" class="btn btn-primary">+ Upload PDF/Image</a>
+    <a routerLink="/answer-keys/new" class="btn btn-secondary">+ Enter manually</a>
+  </div>
+</div>
+
+@if (answerKeys().length === 0) {
+  <div class="card empty-state">
+    <p>No answer keys yet.</p>
+    <p class="text-muted">Create one to start collecting submissions.</p>
+  </div>
+} @else {
+  <div class="card card--flush table-scroll">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Title</th>
+          <th>MCQ questions</th>
+          <th>Text questions</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (key of answerKeys(); track key.id) {
+          <tr>
+            <td>{{ key.title }}</td>
+            <td>{{ key.mcq_answers.length }}</td>
+            <td>{{ key.text_answers.length }}</td>
+            <td>
+              <a [routerLink]="['/answer-keys', key.id, 'submissions']" class="btn btn-secondary btn-sm">
+                Submissions
+              </a>
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+}

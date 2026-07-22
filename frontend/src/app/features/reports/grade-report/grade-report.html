@@ -1,0 +1,67 @@
+<div class="page-header">
+  <div>
+    <h1>Grade Report</h1>
+    <p class="page-header__subtitle">Submission {{ submissionId }}</p>
+  </div>
+  <a routerLink="/answer-keys" class="btn btn-ghost">All answer keys</a>
+</div>
+
+@if (loading()) {
+  <div class="card">
+    <p class="text-muted">Loading report…</p>
+  </div>
+} @else if (notGraded()) {
+  <div class="card empty-state">
+    <p>This submission hasn't been graded yet.</p>
+    <div style="margin-top: var(--space-4);">
+      <button class="btn btn-primary" [disabled]="grading()" (click)="gradeNow()">
+        {{ grading() ? 'Grading…' : 'Grade now' }}
+      </button>
+    </div>
+  </div>
+} @else if (errorMessage()) {
+  <div class="alert alert-danger">{{ errorMessage() }}</div>
+} @else if (result(); as report) {
+  <div class="card">
+    <div class="row spread">
+      <div>
+        <div class="card__title" style="margin-bottom: var(--space-1);">Total score</div>
+        <p class="text-secondary">
+          {{ report.total_points_awarded }} / {{ report.total_points_possible }} points
+        </p>
+      </div>
+      <span class="badge" [class]="scoreBadgeClass(percent(report))" style="font-size: var(--font-size-lg); padding: var(--space-2) var(--space-4);">
+        {{ percent(report) }}%
+      </span>
+    </div>
+  </div>
+
+  <div class="card card--flush table-scroll">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Question</th>
+          <th>Score</th>
+          <th>Graded by</th>
+          <th>Feedback</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (grade of report.question_grades; track grade.question_id) {
+          <tr>
+            <td class="text-mono">{{ grade.question_id }}</td>
+            <td>{{ grade.points_awarded }} / {{ grade.points_possible }}</td>
+            <td><span class="badge badge-neutral">{{ grade.graded_by }}</span></td>
+            <td>{{ grade.feedback || '—' }}</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+
+  <div class="row gap-3" style="margin-top: var(--space-4);">
+    <button class="btn btn-secondary" [disabled]="grading()" (click)="gradeNow()">
+      {{ grading() ? 'Re-grading…' : 'Re-grade' }}
+    </button>
+  </div>
+}

@@ -1,0 +1,64 @@
+<div class="page-header">
+  <div>
+    <h1>New Submission</h1>
+    <p class="page-header__subtitle">
+      @if (answerKey(); as key) {
+        For answer key: <strong>{{ key.title }}</strong>
+      }
+    </p>
+  </div>
+  <a [routerLink]="['/answer-keys', answerKeyId, 'submissions']" class="btn btn-ghost">Cancel</a>
+</div>
+
+@if (loading()) {
+  <div class="card">
+    <p class="text-muted">Loading answer key…</p>
+  </div>
+} @else if (loadError()) {
+  <div class="alert alert-danger">{{ loadError() }}</div>
+} @else {
+  @if (submitError()) {
+    <div class="alert alert-danger">{{ submitError() }}</div>
+  }
+
+  <form [formGroup]="form" (ngSubmit)="submit()" class="stack gap-4">
+    <div class="card">
+      <div class="card__title">Student</div>
+      <div class="field">
+        <label class="label" for="student_name">Student name</label>
+        <input id="student_name" class="input" formControlName="student_name" placeholder="Jane Doe" />
+      </div>
+    </div>
+
+    @if (mcqResponses.length > 0) {
+      <div class="card">
+        <div class="card__title">Multiple-choice answers</div>
+        @for (response of mcqResponses.controls; track $index) {
+          <div class="field" [formGroup]="response">
+            <label class="label">{{ mcqQuestionId($index) }}</label>
+            <input class="input" formControlName="selected_option" placeholder="Selected option (e.g. B)" />
+          </div>
+        }
+      </div>
+    }
+
+    @if (textResponses.length > 0) {
+      <div class="card">
+        <div class="card__title">Free-text answers</div>
+        @for (response of textResponses.controls; track $index) {
+          <div class="field" [formGroup]="response">
+            <label class="label">{{ textQuestionId($index) }}</label>
+            <textarea class="textarea" formControlName="answer_text" placeholder="Student's answer"></textarea>
+          </div>
+        }
+      </div>
+    }
+
+    <div class="row gap-3">
+      <button type="submit" class="btn btn-primary" [disabled]="submitting()">
+        {{ submitting() ? 'Saving…' : 'Save submission' }}
+      </button>
+      <a [routerLink]="['/answer-keys', answerKeyId, 'submissions']" class="btn btn-ghost">Cancel</a>
+    </div>
+  </form>
+}

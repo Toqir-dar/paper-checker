@@ -1,0 +1,42 @@
+<div class="page-header">
+  <div>
+    <h1>Upload Answer Sheet</h1>
+    <p class="page-header__subtitle">
+      Upload a scanned PDF or photo of the student's answer sheet — a vision model
+      reads it and transcribes the MCQ selections and written answers automatically.
+    </p>
+  </div>
+  <a [routerLink]="['/answer-keys', answerKeyId, 'submissions']" class="btn btn-ghost">Cancel</a>
+</div>
+
+@if (errorMessage()) {
+  <div class="alert alert-danger">{{ errorMessage() }}</div>
+}
+
+<div class="card">
+  <div class="field">
+    <label class="label" for="student_name">Student name</label>
+    <input id="student_name" class="input" [(ngModel)]="studentName" placeholder="Jane Doe" name="studentName" />
+  </div>
+
+  <div class="field">
+    <label class="label" for="file">Answer sheet file (PDF or image)</label>
+    <input id="file" type="file" accept=".pdf,image/*" (change)="onFileSelected($event)" />
+  </div>
+
+  @if (uploading()) {
+    <p class="text-muted">Reading the answer sheet — this can take up to a minute…</p>
+  }
+
+  <div class="row gap-3">
+    <button
+      type="button"
+      class="btn btn-primary"
+      [disabled]="uploading() || !selectedFile()"
+      (click)="submit()"
+    >
+      {{ uploading() ? 'Processing…' : 'Upload and extract' }}
+    </button>
+    <a [routerLink]="['/answer-keys', answerKeyId, 'submissions']" class="btn btn-ghost">Cancel</a>
+  </div>
+</div>

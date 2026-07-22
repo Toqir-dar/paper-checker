@@ -1,0 +1,59 @@
+<div class="page-header">
+  <div>
+    <h1>{{ answerKey()?.title ?? 'Submissions' }}</h1>
+    <p class="page-header__subtitle">Submissions collected against this answer key.</p>
+  </div>
+  <div class="row gap-2">
+    <a [routerLink]="['/answer-keys', answerKeyId, 'submissions', 'upload']" class="btn btn-primary">
+      + Upload answer sheet
+    </a>
+    <a [routerLink]="['/answer-keys', answerKeyId, 'submissions', 'new']" class="btn btn-secondary">
+      + Enter manually
+    </a>
+    <a routerLink="/answer-keys" class="btn btn-ghost">All answer keys</a>
+  </div>
+</div>
+
+@if (errorMessage()) {
+  <div class="alert alert-danger">{{ errorMessage() }}</div>
+}
+
+@if (submissions().length === 0) {
+  <div class="card empty-state">
+    <p>No submissions yet.</p>
+  </div>
+} @else {
+  <div class="card card--flush table-scroll">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Student</th>
+          <th>MCQ answers</th>
+          <th>Text answers</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (submission of submissions(); track submission.id) {
+          <tr>
+            <td>{{ submission.student_name }}</td>
+            <td>{{ submission.mcq_responses.length }}</td>
+            <td>{{ submission.text_responses.length }}</td>
+            <td class="row gap-2">
+              <button
+                class="btn btn-secondary btn-sm"
+                [disabled]="gradingId() === submission.id"
+                (click)="grade(submission.id)"
+              >
+                {{ gradingId() === submission.id ? 'Grading…' : 'Grade' }}
+              </button>
+              <a [routerLink]="['/submissions', submission.id, 'report']" class="btn btn-ghost btn-sm">
+                Report
+              </a>
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+}
