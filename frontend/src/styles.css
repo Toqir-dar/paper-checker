@@ -462,6 +462,12 @@ select.input {
   border: 1px solid color-mix(in srgb, var(--color-success) 25%, transparent);
 }
 
+.alert-warning {
+  background: var(--color-warning-light);
+  color: var(--color-warning);
+  border: 1px solid color-mix(in srgb, var(--color-warning) 25%, transparent);
+}
+
 .text-muted {
   color: var(--color-text-muted);
 }

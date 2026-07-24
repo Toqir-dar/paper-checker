@@ -19,6 +19,8 @@ def grade_mcq_responses(
         grades.append(
             QuestionGrade(
                 question_id=response.question_id,
+                question_text=answer.question_text,
+                detected_label=response.detected_label,
                 points_awarded=answer.points if is_correct else 0.0,
                 points_possible=answer.points,
                 feedback="Correct" if is_correct else f"Incorrect — expected {answer.correct_option}",

@@ -1,14 +1,22 @@
 from pydantic import BaseModel, Field
 
+# question_id is the extractor's best content-matched guess against the answer
+# key; detected_label is whatever number/marker was literally written on the
+# page next to the answer. They're kept separate so a mismatch between them
+# (e.g. page says "10" but content matched q9) is visible instead of silently
+# collapsed into one field.
+
 
 class McqResponse(BaseModel):
     question_id: str
     selected_option: str
+    detected_label: str = ""
 
 
 class TextResponse(BaseModel):
     question_id: str
     answer_text: str
+    detected_label: str = ""
 
 
 class Submission(BaseModel):

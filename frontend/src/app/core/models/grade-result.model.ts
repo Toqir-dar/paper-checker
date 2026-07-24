@@ -1,5 +1,7 @@
 export interface QuestionGrade {
   question_id: string;
+  question_text: string;
+  detected_label: string;
   points_awarded: number;
   points_possible: number;
   feedback: string;
@@ -13,4 +15,5 @@ export interface GradeResult {
   question_grades: QuestionGrade[];
   total_points_awarded: number;
   total_points_possible: number;
+  warnings: string[];
 }

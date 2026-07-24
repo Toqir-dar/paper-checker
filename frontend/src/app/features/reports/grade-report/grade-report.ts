@@ -1,7 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, inject, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
-import { GradeResult } from '../../../core/models/grade-result.model';
+import { GradeResult, QuestionGrade } from '../../../core/models/grade-result.model';
 import { GradingService } from '../../../core/services/grading.service';
 
 @Component({
@@ -77,5 +77,14 @@ export class GradeReport {
     if (pct >= 80) return 'badge-success';
     if (pct >= 50) return 'badge-warning';
     return 'badge-danger';
+  }
+
+  protected isMismatched(grade: QuestionGrade): boolean {
+    if (!grade.detected_label) {
+      return false;
+    }
+    const detected = grade.detected_label.match(/\d+/)?.[0];
+    const matched = grade.question_id.match(/\d+/)?.[0];
+    return detected !== undefined && matched !== undefined && detected !== matched;
   }
 }

@@ -97,6 +97,17 @@ class VisionClient:
                     continue
                 raise
 
+            if not response.choices:
+                error = getattr(response, "error", None)
+                logger.warning(
+                    "OpenRouter model %s returned no choices (200 OK with empty/errored "
+                    "response, error=%s), falling back",
+                    model,
+                    error,
+                )
+                last_error = RuntimeError(f"OpenRouter model {model} returned no choices: {error}")
+                continue
+
             text = (response.choices[0].message.content or "").strip()
             try:
                 return json.loads(text), f"openrouter:{model}"

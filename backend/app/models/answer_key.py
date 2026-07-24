@@ -3,6 +3,7 @@ from pydantic import BaseModel, Field
 
 class McqAnswer(BaseModel):
     question_id: str
+    question_text: str = ""
     correct_option: str
     points: float = 1.0
 
@@ -14,6 +15,7 @@ class RubricCriterion(BaseModel):
 
 class TextAnswer(BaseModel):
     question_id: str
+    question_text: str = ""
     reference_answer: str
     rubric: list[RubricCriterion]
 

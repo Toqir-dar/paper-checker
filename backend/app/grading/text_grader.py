@@ -50,6 +50,8 @@ async def grade_text_responses(
         grades.append(
             QuestionGrade(
                 question_id=response.question_id,
+                question_text=answer.question_text,
+                detected_label=response.detected_label,
                 points_awarded=points_awarded,
                 points_possible=points_possible,
                 feedback=feedback,

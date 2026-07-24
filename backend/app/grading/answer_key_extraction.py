@@ -14,13 +14,19 @@ _SYSTEM_INSTRUCTION = (
 
 _EXTRACTION_PROMPT = """Extract a structured answer key from this document.
 
-For every multiple-choice question you find, record its correct option.
-For every free-text / short-answer question you find, record the reference answer
-given (or, if the document doesn't spell one out explicitly, write the best
-reference answer based on the document's content), and break it down into 2-4
-rubric criteria that a grader could check independently, each worth some number
-of points (criteria points should sum to a reasonable total per question, e.g.
-4-10 points).
+For every multiple-choice question you find, record its question_text (the
+question as written, verbatim or near-verbatim) and its correct option.
+For every free-text / short-answer question you find, record its question_text,
+the reference answer given (or, if the document doesn't spell one out
+explicitly, write the best reference answer based on the document's content),
+and break it down into 2-4 rubric criteria that a grader could check
+independently, each worth some number of points (criteria points should sum to
+a reasonable total per question, e.g. 4-10 points).
+
+question_text matters beyond record-keeping: it is later shown to a separate
+model matching a student's answer sheet to these questions, so it needs enough
+of the actual question wording to distinguish this question from the others —
+not just a label like "Question 9".
 
 Assign question IDs sequentially as q1, q2, q3... in the order questions appear,
 across both MCQ and free-text questions combined.
@@ -29,11 +35,12 @@ Respond as JSON only, in exactly this shape:
 {
   "title": "a short descriptive title for this document",
   "mcq_answers": [
-    {"question_id": "q1", "correct_option": "B", "points": 1}
+    {"question_id": "q1", "question_text": "...", "correct_option": "B", "points": 1}
   ],
   "text_answers": [
     {
       "question_id": "q2",
+      "question_text": "...",
       "reference_answer": "...",
       "rubric": [
         {"description": "...", "max_points": 3},

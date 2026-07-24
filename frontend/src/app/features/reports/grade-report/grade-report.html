@@ -22,6 +22,17 @@
 } @else if (errorMessage()) {
   <div class="alert alert-danger">{{ errorMessage() }}</div>
 } @else if (result(); as report) {
+  @if (report.warnings.length > 0) {
+    <div class="alert alert-warning">
+      <strong>Verify before finalizing:</strong>
+      <ul style="margin: var(--space-2) 0 0; padding-left: var(--space-5);">
+        @for (warning of report.warnings; track warning) {
+          <li>{{ warning }}</li>
+        }
+      </ul>
+    </div>
+  }
+
   <div class="card">
     <div class="row spread">
       <div>
@@ -49,7 +60,17 @@
       <tbody>
         @for (grade of report.question_grades; track grade.question_id) {
           <tr>
-            <td class="text-mono">{{ grade.question_id }}</td>
+            <td class="text-mono">
+              {{ grade.question_id }}
+              @if (isMismatched(grade)) {
+                <span class="badge badge-warning" [title]="'Page shows question number \'' + grade.detected_label + '\' but matched to ' + grade.question_id + ' by content'">⚠ page: {{ grade.detected_label }}</span>
+              }
+              @if (grade.question_text) {
+                <div class="text-muted" style="font-weight: normal; font-size: var(--font-size-xs); margin-top: var(--space-1);">
+                  {{ grade.question_text }}
+                </div>
+              }
+            </td>
             <td>{{ grade.points_awarded }} / {{ grade.points_possible }}</td>
             <td><span class="badge badge-neutral">{{ grade.graded_by }}</span></td>
             <td>{{ grade.feedback || '—' }}</td>
