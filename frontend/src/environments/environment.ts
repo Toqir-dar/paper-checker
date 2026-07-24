@@ -1,4 +1,4 @@
 export const environment = {
   production: true,
-  apiBaseUrl: 'http://localhost:8000',
+  apiBaseUrl: 'https://YOUR-HF-USERNAME-paper-checker-api.hf.space',
 };
