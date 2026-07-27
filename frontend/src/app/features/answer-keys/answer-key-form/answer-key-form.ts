@@ -18,6 +18,9 @@ export class AnswerKeyForm {
   protected readonly submitting = signal(false);
   protected readonly errorMessage = signal<string | null>(null);
 
+  protected readonly bulkMcqCount = signal(5);
+  protected readonly bulkMcqPoints = signal(1);
+
   protected readonly form = this.fb.group({
     title: this.fb.control('', Validators.required),
     mcq_answers: this.fb.array<FormGroup>([]),
@@ -40,6 +43,23 @@ export class AnswerKeyForm {
         points: this.fb.control(1, [Validators.required, Validators.min(0)]),
       }),
     );
+  }
+
+  protected generateMcqAnswers(): void {
+    const count = Math.floor(this.bulkMcqCount());
+    if (count < 1) {
+      return;
+    }
+    const startIndex = this.mcqAnswers.length;
+    for (let i = 0; i < count; i++) {
+      this.mcqAnswers.push(
+        this.fb.group({
+          question_id: this.fb.control(`q${startIndex + i + 1}`, Validators.required),
+          correct_option: this.fb.control('', Validators.required),
+          points: this.fb.control(this.bulkMcqPoints(), [Validators.required, Validators.min(0)]),
+        }),
+      );
+    }
   }
 
   protected removeMcqAnswer(index: number): void {
