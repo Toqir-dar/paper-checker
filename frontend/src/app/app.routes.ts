@@ -1,4 +1,5 @@
 import { Routes } from '@angular/router';
+import { Dashboard } from './features/dashboard/dashboard';
 import { AnswerKeyList } from './features/answer-keys/answer-key-list/answer-key-list';
 import { AnswerKeyForm } from './features/answer-keys/answer-key-form/answer-key-form';
 import { AnswerKeyUpload } from './features/answer-keys/answer-key-upload/answer-key-upload';
@@ -8,7 +9,8 @@ import { SubmissionUpload } from './features/submissions/submission-upload/submi
 import { GradeReport } from './features/reports/grade-report/grade-report';
 
 export const routes: Routes = [
-  { path: '', pathMatch: 'full', redirectTo: 'answer-keys' },
+  { path: '', pathMatch: 'full', redirectTo: 'today' },
+  { path: 'today', component: Dashboard },
   { path: 'answer-keys', component: AnswerKeyList },
   { path: 'answer-keys/new', component: AnswerKeyForm },
   { path: 'answer-keys/upload', component: AnswerKeyUpload },
@@ -16,5 +18,5 @@ export const routes: Routes = [
   { path: 'answer-keys/:answerKeyId/submissions/new', component: SubmissionForm },
   { path: 'answer-keys/:answerKeyId/submissions/upload', component: SubmissionUpload },
   { path: 'submissions/:submissionId/report', component: GradeReport },
-  { path: '**', redirectTo: 'answer-keys' },
+  { path: '**', redirectTo: 'today' },
 ];

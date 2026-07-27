@@ -1,0 +1,9 @@
+.review__aside h1 {
+  font-size: clamp(30px, 5vw, 44px);
+}
+
+@media (max-width: 700px) {
+  .review__aside {
+    position: static;
+  }
+}

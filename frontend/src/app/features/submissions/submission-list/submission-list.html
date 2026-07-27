@@ -1,59 +1,60 @@
+<a routerLink="/answer-keys" class="back-link">← Answer keys</a>
+
 <div class="page-header">
   <div>
-    <h1>{{ answerKey()?.title ?? 'Submissions' }}</h1>
-    <p class="page-header__subtitle">Submissions collected against this answer key.</p>
+    <p class="eyebrow">The stack</p>
+    <h1>{{ answerKey()?.title || 'Submissions' }}</h1>
+    <p class="mono muted" style="margin-top: 10px; font-size: 11.5px">
+      {{ answerKey()?.mcq_answers?.length || 0 }} multiple choice ·
+      {{ answerKey()?.text_answers?.length || 0 }} written · {{ submissions().length }} papers in
+    </p>
   </div>
-  <div class="row gap-2">
-    <a [routerLink]="['/answer-keys', answerKeyId, 'submissions', 'upload']" class="btn btn-primary">
-      + Upload answer sheet
-    </a>
-    <a [routerLink]="['/answer-keys', answerKeyId, 'submissions', 'new']" class="btn btn-secondary">
-      + Enter manually
-    </a>
-    <a routerLink="/answer-keys" class="btn btn-ghost">All answer keys</a>
+  <div class="actions">
+    <a
+      [routerLink]="['/answer-keys', answerKeyId, 'submissions', 'upload']"
+      class="btn btn-primary"
+      >Add papers</a
+    >
+    <a [routerLink]="['/answer-keys', answerKeyId, 'submissions', 'new']" class="btn btn-secondary"
+      >Type one in</a
+    >
   </div>
 </div>
 
 @if (errorMessage()) {
-  <div class="alert alert-danger">{{ errorMessage() }}</div>
+  <div class="alert alert-danger mt-6">{{ errorMessage() }}</div>
 }
 
 @if (submissions().length === 0) {
-  <div class="card empty-state">
-    <p>No submissions yet.</p>
+  <div class="empty-state">
+    <p class="figure">No papers yet</p>
+    <p class="muted mt-4">Photograph a stack, or type a single paper in by hand.</p>
   </div>
 } @else {
-  <div class="card card--flush table-scroll">
-    <table class="table">
-      <thead>
-        <tr>
-          <th>Student</th>
-          <th>MCQ answers</th>
-          <th>Text answers</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody>
-        @for (submission of submissions(); track submission.id) {
-          <tr>
-            <td>{{ submission.student_name }}</td>
-            <td>{{ submission.mcq_responses.length }}</td>
-            <td>{{ submission.text_responses.length }}</td>
-            <td class="row gap-2">
-              <button
-                class="btn btn-secondary btn-sm"
-                [disabled]="gradingId() === submission.id"
-                (click)="grade(submission.id)"
-              >
-                {{ gradingId() === submission.id ? 'Grading…' : 'Grade' }}
-              </button>
-              <a [routerLink]="['/submissions', submission.id, 'report']" class="btn btn-ghost btn-sm">
-                Report
-              </a>
-            </td>
-          </tr>
-        }
-      </tbody>
-    </table>
+  <div class="ruled">
+    @for (submission of submissions(); track submission.id; let i = $index) {
+      <div class="ruled__row">
+        <span class="ruled__index">{{ i + 1 }}</span>
+        <span class="ruled__primary">{{ submission.student_name }}</span>
+        <span class="ruled__secondary">
+          {{ submission.mcq_responses.length }} answered ·
+          {{ submission.text_responses.length }} written
+        </span>
+        <span class="actions">
+          <button
+            class="btn btn-secondary btn-sm"
+            [disabled]="gradingId() === submission.id"
+            (click)="grade(submission.id)"
+          >
+            {{ gradingId() === submission.id ? 'Grading…' : 'Grade' }}
+          </button>
+          <a
+            [routerLink]="['/submissions', submission.id, 'report']"
+            class="btn btn-primary btn-sm"
+            >Review</a
+          >
+        </span>
+      </div>
+    }
   </div>
 }

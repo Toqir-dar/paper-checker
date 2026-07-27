@@ -1,5 +1,5 @@
 ---
-title: Paper Checker API
+title: Markup API
 emoji: 📝
 colorFrom: blue
 colorTo: green
@@ -8,4 +8,4 @@ app_port: 7860
 pinned: false
 ---
 
-FastAPI backend for Paper Checker. See the main repository for source and docs.
+FastAPI backend for Markup. See the main repository for source and docs.

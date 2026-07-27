@@ -1,46 +1,40 @@
 <div class="page-header">
   <div>
-    <h1>Answer Keys</h1>
+    <p class="eyebrow">Library</p>
+    <h1>Answer keys</h1>
     <p class="page-header__subtitle">
-      Create an answer key, then collect and grade student submissions against it.
+      A key is the truth a stack of papers gets measured against. Photograph one, or type it in.
     </p>
   </div>
-  <div class="row gap-2">
-    <a routerLink="/answer-keys/upload" class="btn btn-primary">+ Upload PDF/Image</a>
-    <a routerLink="/answer-keys/new" class="btn btn-secondary">+ Enter manually</a>
+  <div class="actions">
+    <a routerLink="/answer-keys/upload" class="btn btn-primary">Photograph a key</a>
+    <a routerLink="/answer-keys/new" class="btn btn-secondary">Type it in</a>
   </div>
 </div>
 
 @if (answerKeys().length === 0) {
-  <div class="card empty-state">
-    <p>No answer keys yet.</p>
-    <p class="text-muted">Create one to start collecting submissions.</p>
+  <div class="empty-state">
+    <p class="figure">No answer keys yet</p>
+    <p class="muted mt-4">Create one to start collecting submissions.</p>
   </div>
 } @else {
-  <div class="card card--flush table-scroll">
-    <table class="table">
-      <thead>
-        <tr>
-          <th>Title</th>
-          <th>MCQ questions</th>
-          <th>Text questions</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody>
-        @for (key of answerKeys(); track key.id) {
-          <tr>
-            <td>{{ key.title }}</td>
-            <td>{{ key.mcq_answers.length }}</td>
-            <td>{{ key.text_answers.length }}</td>
-            <td>
-              <a [routerLink]="['/answer-keys', key.id, 'submissions']" class="btn btn-secondary btn-sm">
-                Submissions
-              </a>
-            </td>
-          </tr>
-        }
-      </tbody>
-    </table>
+  <div class="ruled">
+    @for (key of answerKeys(); track key.id) {
+      <a class="ruled__row" [routerLink]="['/answer-keys', key.id, 'submissions']">
+        <span class="ruled__primary" style="flex: 1 1 260px">
+          <span class="ruled__title">{{ key.title }}</span>
+          <span class="mono muted" style="display: block; font-size: 11px; margin-top: 5px">
+            {{ key.mcq_answers.length }} multiple choice · {{ key.text_answers.length }} written
+          </span>
+        </span>
+        <span class="ruled__stat">
+          <span style="font-weight: 500">
+            {{ key.mcq_answers.length + key.text_answers.length }}
+          </span>
+          <span class="label" style="display: block">questions</span>
+        </span>
+        <span class="ruled__chevron">→</span>
+      </a>
+    }
   </div>
 }

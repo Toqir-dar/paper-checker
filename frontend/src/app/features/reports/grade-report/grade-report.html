@@ -1,88 +1,154 @@
-<div class="page-header">
-  <div>
-    <h1>Grade Report</h1>
-    <p class="page-header__subtitle">Submission {{ submissionId }}</p>
-  </div>
-  <a routerLink="/answer-keys" class="btn btn-ghost">All answer keys</a>
-</div>
+<a routerLink="/today" class="back-link">← Back to the queue</a>
 
 @if (loading()) {
-  <div class="card">
-    <p class="text-muted">Loading report…</p>
-  </div>
+  <p class="mono muted">Loading the paper…</p>
 } @else if (notGraded()) {
-  <div class="card empty-state">
-    <p>This submission hasn't been graded yet.</p>
-    <div style="margin-top: var(--space-4);">
+  <div class="empty-state">
+    <p class="figure">Not graded yet</p>
+    <p class="muted mt-4">Run it through the model, then come back and check the work.</p>
+    <div class="mt-6">
       <button class="btn btn-primary" [disabled]="grading()" (click)="gradeNow()">
-        {{ grading() ? 'Grading…' : 'Grade now' }}
+        {{ grading() ? 'Grading…' : 'Grade this paper' }}
       </button>
     </div>
   </div>
 } @else if (errorMessage()) {
   <div class="alert alert-danger">{{ errorMessage() }}</div>
 } @else if (result(); as report) {
-  @if (report.warnings.length > 0) {
-    <div class="alert alert-warning">
-      <strong>Verify before finalizing:</strong>
-      <ul style="margin: var(--space-2) 0 0; padding-left: var(--space-5);">
-        @for (warning of report.warnings; track warning) {
-          <li>{{ warning }}</li>
-        }
-      </ul>
-    </div>
-  }
+  <div class="review">
+    <!-- ------------------------------------------------ the verdict, at a glance -->
+    <aside class="review__aside">
+      <p class="eyebrow">{{ submission()?.student_name ? 'Paper' : 'Submission' }}</p>
+      <h1>{{ submission()?.student_name || submissionId }}</h1>
+      <p class="soft mt-4" style="font-size: 14px">{{ answerKey()?.title }}</p>
 
-  <div class="card">
-    <div class="row spread">
-      <div>
-        <div class="card__title" style="margin-bottom: var(--space-1);">Total score</div>
-        <p class="text-secondary">
-          {{ report.total_points_awarded }} / {{ report.total_points_possible }} points
-        </p>
+      <div class="review__total">
+        <div>
+          <div class="figure-xl">{{ percent() }}%</div>
+          <div class="mono soft" style="margin-top: 8px; font-size: 12px">
+            {{ awardedTotal() }} of {{ possibleTotal() }} points
+          </div>
+        </div>
+        @if (editCount() > 0) {
+          <span class="tag tag--flag">
+            you changed {{ editCount() }} {{ editCount() === 1 ? 'score' : 'scores' }}
+          </span>
+        }
       </div>
-      <span class="badge" [class]="scoreBadgeClass(percent(report))" style="font-size: var(--font-size-lg); padding: var(--space-2) var(--space-4);">
-        {{ percent(report) }}%
-      </span>
-    </div>
-  </div>
 
-  <div class="card card--flush table-scroll">
-    <table class="table">
-      <thead>
-        <tr>
-          <th>Question</th>
-          <th>Score</th>
-          <th>Graded by</th>
-          <th>Feedback</th>
-        </tr>
-      </thead>
-      <tbody>
-        @for (grade of report.question_grades; track grade.question_id) {
-          <tr>
-            <td class="text-mono">
-              {{ grade.question_id }}
-              @if (isMismatched(grade)) {
-                <span class="badge badge-warning" [title]="'Page shows question number \'' + grade.detected_label + '\' but matched to ' + grade.question_id + ' by content'">⚠ page: {{ grade.detected_label }}</span>
-              }
-              @if (grade.question_text) {
-                <div class="text-muted" style="font-weight: normal; font-size: var(--font-size-xs); margin-top: var(--space-1);">
-                  {{ grade.question_text }}
-                </div>
-              }
-            </td>
-            <td>{{ grade.points_awarded }} / {{ grade.points_possible }}</td>
-            <td><span class="badge badge-neutral">{{ grade.graded_by }}</span></td>
-            <td>{{ grade.feedback || '—' }}</td>
-          </tr>
+      <div class="meter mt-4" style="flex: none; width: 100%">
+        <div [class]="meterClass()" [style.width.%]="percent()"></div>
+      </div>
+
+      @if (report.warnings.length > 0) {
+        <div class="margin-note">
+          <span class="label">Before you finalise</span>
+          @for (warning of report.warnings; track warning) {
+            <p>{{ warning }}</p>
+          }
+        </div>
+      }
+
+      <div class="review__cta">
+        <button class="btn btn-primary btn-block" [disabled]="grading()">
+          Confirm this paper
+        </button>
+        <div class="actions">
+          <a routerLink="/today" class="btn btn-secondary">Back to queue</a>
+          <a
+            [routerLink]="['/answer-keys', report.answer_key_id, 'submissions']"
+            class="btn btn-secondary"
+            >The stack</a
+          >
+        </div>
+        <button class="btn btn-link mt-4" [disabled]="grading()" (click)="gradeNow()">
+          {{ grading() ? 'asking the model again…' : 'ask the model to grade it again' }}
+        </button>
+      </div>
+    </aside>
+
+    <!-- ------------------------------------------------- question by question -->
+    <section>
+      <div class="section-rule" style="margin-top: 0">
+        <h2>Question by question</h2>
+        @if (flaggedCount() > 0) {
+          <button class="btn-link mono marked" (click)="toggleFlaggedOnly()">
+            {{
+              flaggedOnly()
+                ? 'show all ' + report.question_grades.length
+                : 'only flagged (' + flaggedCount() + ')'
+            }}
+          </button>
         }
-      </tbody>
-    </table>
-  </div>
+      </div>
 
-  <div class="row gap-3" style="margin-top: var(--space-4);">
-    <button class="btn btn-secondary" [disabled]="grading()" (click)="gradeNow()">
-      {{ grading() ? 'Re-grading…' : 'Re-grade' }}
-    </button>
+      @for (grade of visibleGrades(); track grade.question_id) {
+        <article class="qgrade">
+          <div class="qgrade__head">
+            <span class="mono muted" style="font-size: 12.5px">{{ grade.question_id }}</span>
+            <span class="tag tag--quiet">{{ kindOf(grade) }}</span>
+            @if (flagOf(grade)) {
+              <span class="tag tag--flag">{{ flagLabel(grade) }}</span>
+            }
+            <span class="spacer"></span>
+            <span class="mono muted" style="font-size: 10.5px">{{ originOf(grade) }}</span>
+          </div>
+
+          @if (grade.question_text) {
+            <p class="qgrade__question">{{ grade.question_text }}</p>
+          }
+
+          <div class="split mt-4">
+            <div class="split__cell">
+              <span class="label">They wrote</span>
+              <div style="font-size: 14px; line-height: 1.45">{{ studentAnswer(grade) }}</div>
+            </div>
+            <div class="split__cell split__cell--key">
+              <span class="label">The key says</span>
+              <div style="font-size: 14px; line-height: 1.45">{{ keyAnswer(grade) }}</div>
+            </div>
+          </div>
+
+          @if (grade.feedback) {
+            <p class="quote">{{ grade.feedback }}</p>
+          }
+
+          <div class="qgrade__scoring">
+            <div class="stepper">
+              <button
+                type="button"
+                aria-label="Take a point off"
+                [disabled]="awarded(grade) === 0"
+                (click)="bump(grade, -1)"
+              >
+                −
+              </button>
+              <span class="stepper__value">
+                {{ awarded(grade) }} / {{ grade.points_possible }}
+              </span>
+              <button
+                type="button"
+                aria-label="Give a point"
+                [disabled]="awarded(grade) === grade.points_possible"
+                (click)="bump(grade, 1)"
+              >
+                +
+              </button>
+            </div>
+
+            @if (isEdited(grade)) {
+              <span class="qgrade__origin qgrade__origin--edited">
+                you set this · model said {{ grade.points_awarded }} /
+                {{ grade.points_possible }}
+              </span>
+              <span class="spacer"></span>
+              <button class="btn-link" (click)="clearOverride(grade)">undo</button>
+            } @else {
+              <span class="qgrade__origin">{{ agreementLabel(grade) }}</span>
+            }
+          </div>
+        </article>
+      }
+    </section>
   </div>
 }

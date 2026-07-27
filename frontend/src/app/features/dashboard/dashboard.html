@@ -1,0 +1,63 @@
+<p class="eyebrow">{{ today }}</p>
+
+@if (paperCount() > 0) {
+  <h1>{{ paperCount() }} papers are waiting on your eyes.</h1>
+  <p class="page-header__subtitle">
+    The model has scored every one of them. Your job is the second look — confirm what's right,
+    fix what isn't.
+  </p>
+} @else {
+  <h1>Nothing is waiting on you.</h1>
+  <p class="page-header__subtitle">
+    Every paper that's come in has been read. Add an answer key to start a new stack.
+  </p>
+}
+
+<div class="stats">
+  <div class="stats__cell">
+    <span class="figure">{{ paperCount() }}</span>
+    <span class="label">Papers collected</span>
+  </div>
+  <div class="stats__cell">
+    <span class="figure marked">{{ judgementCount() }}</span>
+    <span class="label">Written answers to weigh</span>
+  </div>
+  <div class="stats__cell">
+    <span class="figure">{{ keys().length }}</span>
+    <span class="label">Answer keys</span>
+  </div>
+</div>
+
+@if (queue().length > 0) {
+  <div class="section-rule">
+    <h2>The queue</h2>
+    <span class="mono muted">oldest first</span>
+  </div>
+
+  <div class="ruled" style="border-top: none; margin-top: 0">
+    @for (row of queue(); track row.submission.id; let i = $index) {
+      <a
+        class="ruled__row"
+        [routerLink]="['/submissions', row.submission.id, 'report']"
+      >
+        <span class="ruled__index">{{ index(i) }}</span>
+        <span class="ruled__primary">{{ row.submission.student_name }}</span>
+        <span class="ruled__secondary">{{ row.keyTitle }}</span>
+        @if (row.writtenCount > 0) {
+          <span class="tag tag--flag">
+            {{ row.writtenCount }} written
+          </span>
+        }
+        <span class="ruled__chevron">→</span>
+      </a>
+    }
+  </div>
+} @else {
+  <div class="empty-state">
+    <p class="figure">No papers yet</p>
+    <p class="muted mt-4">
+      <a routerLink="/answer-keys">Start with an answer key</a> — then collect submissions
+      against it.
+    </p>
+  </div>
+}

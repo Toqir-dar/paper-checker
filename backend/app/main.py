@@ -17,7 +17,7 @@ async def lifespan(_: FastAPI):
     await close_mongo_connection()
 
 
-app = FastAPI(title="Paper Checker API", lifespan=lifespan)
+app = FastAPI(title="Markup API", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,

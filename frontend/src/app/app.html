@@ -1,12 +1,20 @@
 <header class="shell-header">
-  <div class="container row spread">
-    <a routerLink="/answer-keys" class="shell-brand">Paper Checker</a>
-    <nav class="row gap-4">
-      <a routerLink="/answer-keys" routerLinkActive="is-active">Answer Keys</a>
-    </nav>
+  <div class="shell-header__inner">
+    <a routerLink="/today" class="shell-brand">Markup</a>
+    <div class="shell-right">
+      <nav class="shell-nav">
+        <a routerLink="/today" routerLinkActive="is-active">Today</a>
+        <a routerLink="/answer-keys" routerLinkActive="is-active">Answer keys</a>
+      </nav>
+      <a routerLink="/answer-keys/upload" class="btn btn-primary btn-sm">+ New answer key</a>
+    </div>
   </div>
 </header>
 
-<main class="container shell-main">
+<main class="shell-main">
   <router-outlet />
 </main>
+
+<footer class="shell-footer">
+  <p>Markup — the model scores, you decide</p>
+</footer>
