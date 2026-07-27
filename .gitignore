@@ -1,3 +1,18 @@
+# Python
 myvenv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Env / secrets
 backend/.env
-.pyc
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors
+/.vscode/
+/.idea/
