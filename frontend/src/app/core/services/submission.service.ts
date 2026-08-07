@@ -14,6 +14,11 @@ export class SubmissionService {
     return this.http.get<Submission[]>(this.baseUrl, { params });
   }
 
+  /** Every submission across all answer keys, in one call. */
+  list(): Observable<Submission[]> {
+    return this.http.get<Submission[]>(this.baseUrl);
+  }
+
   get(id: string): Observable<Submission> {
     return this.http.get<Submission>(`${this.baseUrl}/${id}`);
   }
@@ -28,5 +33,9 @@ export class SubmissionService {
     formData.append('student_name', studentName);
     formData.append('file', file);
     return this.http.post<Submission>(`${this.baseUrl}/upload`, formData);
+  }
+
+  delete(id: string): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl}/${id}`);
   }
 }

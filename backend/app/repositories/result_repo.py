@@ -34,3 +34,12 @@ class ResultRepository:
             return None
         doc["_id"] = str(doc["_id"])
         return GradeResult.model_validate(doc)
+
+    async def delete_by_submission(self, submission_id: str) -> bool:
+        result = await self._collection.delete_one({"submission_id": submission_id})
+        return result.deleted_count > 0
+
+    async def delete_by_answer_key(self, answer_key_id: str) -> int:
+        """Cascade delete when the parent answer key is removed."""
+        result = await self._collection.delete_many({"answer_key_id": answer_key_id})
+        return result.deleted_count

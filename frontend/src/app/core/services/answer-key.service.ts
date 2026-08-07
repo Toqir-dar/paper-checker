@@ -26,4 +26,9 @@ export class AnswerKeyService {
     formData.append('file', file);
     return this.http.post<AnswerKey>(`${this.baseUrl}/upload`, formData);
   }
+
+  /** Also removes every submission (and grade result) filed against this key. */
+  delete(id: string): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl}/${id}`);
+  }
 }

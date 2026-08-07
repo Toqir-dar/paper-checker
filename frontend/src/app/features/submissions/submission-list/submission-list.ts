@@ -1,6 +1,7 @@
 import { Component, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { Submission } from '../../../core/models/submission.model';
 import { AnswerKeyService } from '../../../core/services/answer-key.service';
 import { GradingService } from '../../../core/services/grading.service';
 import { SubmissionService } from '../../../core/services/submission.service';
@@ -21,13 +22,17 @@ export class SubmissionList {
   protected readonly answerKeyId = this.route.snapshot.paramMap.get('answerKeyId')!;
 
   protected readonly answerKey = toSignal(this.answerKeyService.get(this.answerKeyId));
-  protected readonly submissions = toSignal(
-    this.submissionService.listForAnswerKey(this.answerKeyId),
-    { initialValue: [] },
-  );
+  protected readonly submissions = signal<Submission[]>([]);
 
   protected readonly gradingId = signal<string | null>(null);
+  protected readonly deletingId = signal<string | null>(null);
   protected readonly errorMessage = signal<string | null>(null);
+
+  constructor() {
+    this.submissionService
+      .listForAnswerKey(this.answerKeyId)
+      .subscribe((submissions) => this.submissions.set(submissions));
+  }
 
   protected grade(submissionId: string): void {
     this.gradingId.set(submissionId);
@@ -43,6 +48,26 @@ export class SubmissionList {
         this.errorMessage.set(
           'Grading failed — the configured LLM providers may be rate-limited. Try again shortly.',
         );
+      },
+    });
+  }
+
+  protected delete(submission: Submission): void {
+    const confirmed = confirm(`Delete ${submission.student_name}'s submission and its grade?`);
+    if (!confirmed) {
+      return;
+    }
+
+    this.deletingId.set(submission.id);
+    this.errorMessage.set(null);
+    this.submissionService.delete(submission.id).subscribe({
+      next: () => {
+        this.submissions.update((subs) => subs.filter((s) => s.id !== submission.id));
+        this.deletingId.set(null);
+      },
+      error: () => {
+        this.deletingId.set(null);
+        this.errorMessage.set('Could not delete this submission. Try again.');
       },
     });
   }

@@ -30,3 +30,7 @@ class AnswerKeyRepository:
             doc["_id"] = str(doc["_id"])
             results.append(AnswerKey.model_validate(doc))
         return results
+
+    async def delete(self, answer_key_id: str) -> bool:
+        result = await self._collection.delete_one({"_id": ObjectId(answer_key_id)})
+        return result.deleted_count > 0

@@ -71,4 +71,28 @@ async def extract_answer_key_from_file(
     )
     logger.info("Answer key extracted by %s", model)
 
+    _drop_incomplete_mcq_answers(result)
+
     return AnswerKey.model_validate(result)
+
+
+def _drop_incomplete_mcq_answers(result: dict) -> None:
+    """Discard MCQ entries the vision model couldn't fully extract.
+
+    The model occasionally emits an mcq_answers entry with a question_id/
+    question_text but null correct_option or points — e.g. when it can't
+    make out the marked answer on a scanned page. That's a gap in this one
+    question, not a reason to fail the whole upload, so drop it and let the
+    user fill it in manually rather than raising a validation error.
+    """
+    mcq_answers = result.get("mcq_answers")
+    if not isinstance(mcq_answers, list):
+        return
+
+    kept = []
+    for entry in mcq_answers:
+        if not isinstance(entry, dict) or entry.get("correct_option") is None or entry.get("points") is None:
+            logger.warning("Dropping incomplete mcq_answers entry from extraction: %s", entry)
+            continue
+        kept.append(entry)
+    result["mcq_answers"] = kept

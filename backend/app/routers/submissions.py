@@ -7,6 +7,7 @@ from app.grading.submission_extraction import extract_submission_responses
 from app.grading.vision_client import AllVisionProvidersExhaustedError, get_vision_client
 from app.models.submission import Submission
 from app.repositories.answer_key_repo import AnswerKeyRepository
+from app.repositories.result_repo import ResultRepository
 from app.repositories.submission_repo import SubmissionRepository
 
 router = APIRouter(prefix="/submissions", tags=["submissions"])
@@ -73,7 +74,27 @@ async def get_submission(
 
 @router.get("", response_model=list[Submission])
 async def list_submissions_for_answer_key(
-    answer_key_id: str,
+    answer_key_id: str | None = None,
     db: AsyncIOMotorDatabase = Depends(get_database),
 ) -> list[Submission]:
-    return await SubmissionRepository(db).list_by_answer_key(answer_key_id)
+    """Filtered by answer_key_id when given; otherwise every submission
+    (used by the dashboard, which would otherwise need one call per key)."""
+    repo = SubmissionRepository(db)
+    if answer_key_id is None:
+        return await repo.list_all()
+    return await repo.list_by_answer_key(answer_key_id)
+
+
+@router.delete(
+    "/{submission_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(require_api_key)],
+)
+async def delete_submission(
+    submission_id: str,
+    db: AsyncIOMotorDatabase = Depends(get_database),
+) -> None:
+    deleted = await SubmissionRepository(db).delete(submission_id)
+    if not deleted:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Submission not found")
+    await ResultRepository(db).delete_by_submission(submission_id)

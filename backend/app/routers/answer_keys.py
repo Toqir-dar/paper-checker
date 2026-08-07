@@ -7,6 +7,8 @@ from app.grading.answer_key_extraction import extract_answer_key_from_file
 from app.grading.vision_client import AllVisionProvidersExhaustedError, get_vision_client
 from app.models.answer_key import AnswerKey
 from app.repositories.answer_key_repo import AnswerKeyRepository
+from app.repositories.result_repo import ResultRepository
+from app.repositories.submission_repo import SubmissionRepository
 
 router = APIRouter(prefix="/answer-keys", tags=["answer-keys"])
 
@@ -59,3 +61,21 @@ async def get_answer_key(
     if answer_key is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Answer key not found")
     return answer_key
+
+
+@router.delete(
+    "/{answer_key_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(require_api_key)],
+)
+async def delete_answer_key(
+    answer_key_id: str,
+    db: AsyncIOMotorDatabase = Depends(get_database),
+) -> None:
+    """Deleting a key also removes every submission filed against it and
+    their grade results — an orphaned submission can't be graded or reviewed."""
+    deleted = await AnswerKeyRepository(db).delete(answer_key_id)
+    if not deleted:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Answer key not found")
+    await ResultRepository(db).delete_by_answer_key(answer_key_id)
+    await SubmissionRepository(db).delete_by_answer_key(answer_key_id)

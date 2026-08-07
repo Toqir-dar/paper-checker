@@ -12,6 +12,10 @@
   </div>
 </div>
 
+@if (errorMessage()) {
+  <div class="alert alert-danger mt-6">{{ errorMessage() }}</div>
+}
+
 @if (answerKeys().length === 0) {
   <div class="empty-state">
     <p class="figure">No answer keys yet</p>
@@ -20,21 +24,34 @@
 } @else {
   <div class="ruled">
     @for (key of answerKeys(); track key.id) {
-      <a class="ruled__row" [routerLink]="['/answer-keys', key.id, 'submissions']">
-        <span class="ruled__primary" style="flex: 1 1 260px">
+      <div class="ruled__row">
+        <a
+          class="ruled__primary"
+          style="flex: 1 1 260px"
+          [routerLink]="['/answer-keys', key.id, 'submissions']"
+        >
           <span class="ruled__title">{{ key.title }}</span>
           <span class="mono muted" style="display: block; font-size: 11px; margin-top: 5px">
             {{ key.mcq_answers.length }} multiple choice · {{ key.text_answers.length }} written
           </span>
-        </span>
+        </a>
         <span class="ruled__stat">
           <span style="font-weight: 500">
             {{ key.mcq_answers.length + key.text_answers.length }}
           </span>
           <span class="label" style="display: block">questions</span>
         </span>
-        <span class="ruled__chevron">→</span>
-      </a>
+        <span class="actions">
+          <a [routerLink]="['/answer-keys', key.id, 'submissions']" class="ruled__chevron">→</a>
+          <button
+            class="btn btn-secondary btn-sm"
+            [disabled]="deletingId() === key.id"
+            (click)="delete(key)"
+          >
+            {{ deletingId() === key.id ? 'Deleting…' : 'Delete' }}
+          </button>
+        </span>
+      </div>
     }
   </div>
 }
