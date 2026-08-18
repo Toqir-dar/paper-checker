@@ -1,10 +1,11 @@
 <a routerLink="/answer-keys" class="back-link">← Answer keys</a>
 
-<h1>Photograph the key</h1>
+<h1>Add the key</h1>
 <p class="page-header__subtitle">
-  A scan, a PDF, or a phone photo of the marking scheme. A vision model reads the questions, the
-  answers, and the rubric off the page — you'll land on a review screen to check and fix what it
-  found (including points) before any submissions are graded against it.
+  A scan, a PDF, a phone photo, or a typed Word (.docx) document of the marking scheme. A vision
+  model reads scans/PDFs off the page (a text model reads .docx directly) — you'll land on a
+  review screen to check and fix what it found (including points) before any submissions are
+  graded against it.
 </p>
 
 @if (errorMessage()) {
@@ -13,8 +14,12 @@
 
 <div class="dropzone">
   <p class="dropzone__title">Drop the page here</p>
-  <p class="label" style="margin-top: 10px">pdf · jpg · png · heic</p>
-  <input type="file" accept="application/pdf,image/*" (change)="onFileSelected($event)" />
+  <p class="label" style="margin-top: 10px">pdf · jpg · png · heic · docx</p>
+  <input
+    type="file"
+    accept="application/pdf,image/*,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    (change)="onFileSelected($event)"
+  />
   @if (selectedFile(); as file) {
     <p class="mono soft" style="margin-top: 14px; font-size: 12px">{{ file.name }}</p>
   }
@@ -32,6 +37,6 @@
     <div class="progress__fill" style="width: 60%"></div>
   </div>
   <p class="mono muted mt-4" style="font-size: 12px">
-    Straightening the page, reading question numbers, matching answers to points…
+    Reading question numbers, matching answers to points…
   </p>
 }

@@ -50,9 +50,16 @@
       }
 
       <div class="review__cta">
-        <button class="btn btn-primary btn-block" [disabled]="grading()">
-          Confirm this paper
+        <button
+          class="btn btn-primary btn-block"
+          [disabled]="grading() || confirming()"
+          (click)="confirmPaper()"
+        >
+          {{ confirming() ? 'Confirming…' : isReviewed() ? 'Confirmed ✓ — re-confirm' : 'Confirm this paper' }}
         </button>
+        @if (confirmError()) {
+          <div class="alert alert-danger mt-4">{{ confirmError() }}</div>
+        }
         <div class="actions">
           <a routerLink="/today" class="btn btn-secondary">Back to queue</a>
           <a

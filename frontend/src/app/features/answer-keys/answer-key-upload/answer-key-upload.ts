@@ -25,7 +25,7 @@ export class AnswerKeyUpload {
   protected submit(): void {
     const file = this.selectedFile();
     if (!file) {
-      this.errorMessage.set('Choose a PDF or image file first.');
+      this.errorMessage.set('Choose a PDF, image, or Word (.docx) file first.');
       return;
     }
 

@@ -13,10 +13,12 @@ logger = logging.getLogger(__name__)
 
 # HTTP statuses that mean "this key/model combo is unusable right now" — worth
 # falling back on, as opposed to a genuine request error we should surface.
-# 404 is included because both Groq and Gemini retire/rename free models often
-# enough that a stale model ID in GROQ_MODELS/GEMINI_MODELS shouldn't take down
-# the whole chain — just skip it and try the next configured model.
-_RETRYABLE_STATUS_CODES = {404, 429, 500, 503}
+# 404 and 400 are included because both Groq and Gemini retire/rename free
+# models often enough that a stale or decommissioned model ID in
+# GROQ_MODELS/GEMINI_MODELS shouldn't take down the whole chain — just skip it
+# and try the next configured model (Groq returns 400 model_decommissioned for
+# a retired model, not 404).
+_RETRYABLE_STATUS_CODES = {400, 404, 429, 500, 503}
 
 
 class AllProvidersExhaustedError(Exception):

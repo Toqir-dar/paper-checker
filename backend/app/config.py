@@ -12,13 +12,13 @@ class Settings(BaseSettings):
 
     groq_api_keys_csv: str = Field(default="", validation_alias="GROQ_API_KEYS")
     groq_models_csv: str = Field(
-        default="llama-3.3-70b-versatile,llama-3.1-8b-instant,gemma2-9b-it",
+        default="openai/gpt-oss-120b,openai/gpt-oss-20b,qwen/qwen3.6-27b",
         validation_alias="GROQ_MODELS",
     )
 
     gemini_api_keys_csv: str = Field(default="", validation_alias="GEMINI_API_KEYS")
     gemini_models_csv: str = Field(
-        default="gemini-2.5-flash,gemini-2.0-flash,gemini-2.0-flash-lite",
+        default="gemini-3.6-flash,gemini-3.5-flash-lite",
         validation_alias="GEMINI_MODELS",
     )
 

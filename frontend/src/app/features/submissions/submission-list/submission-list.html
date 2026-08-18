@@ -23,6 +23,9 @@
     <a [routerLink]="['/answer-keys', answerKeyId, 'submissions', 'new']" class="btn btn-secondary"
       >Type one in</a
     >
+    @if (submissions().length > 0) {
+      <a [href]="csvUrl" class="btn btn-secondary" download>Download CSV</a>
+    }
   </div>
 </div>
 

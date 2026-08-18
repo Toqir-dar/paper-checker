@@ -53,4 +53,12 @@ export class SubmissionService {
   delete(id: string): Observable<void> {
     return this.http.delete<void>(`${this.baseUrl}/${id}`);
   }
+
+  /** GET endpoint, no API key required — usable directly as an <a href>, same
+   * as BatchService.csvDownloadUrl. Covers every submission filed against this
+   * answer key, not just ones grouped into a batch. */
+  csvDownloadUrl(answerKeyId: string): string {
+    const params = new HttpParams().set('answer_key_id', answerKeyId);
+    return `${this.baseUrl}/csv?${params.toString()}`;
+  }
 }

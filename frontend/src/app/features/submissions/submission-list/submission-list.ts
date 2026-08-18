@@ -26,6 +26,7 @@ export class SubmissionList {
   protected readonly answerKeyId = this.route.snapshot.paramMap.get('answerKeyId')!;
 
   protected readonly answerKey = toSignal(this.answerKeyService.get(this.answerKeyId));
+  protected readonly csvUrl = this.submissionService.csvDownloadUrl(this.answerKeyId);
   protected readonly submissions = signal<Submission[]>([]);
   protected readonly batches = signal<Batch[]>([]);
 

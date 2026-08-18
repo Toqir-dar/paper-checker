@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from pydantic import BaseModel, Field
 
 
@@ -23,5 +25,9 @@ class GradeResult(BaseModel):
     # key, which most often means a misread handwritten number, not a skipped
     # question.
     warnings: list[str] = Field(default_factory=list)
+    # Set once a teacher has reviewed this report and hit "Confirm this paper"
+    # — None until then. Re-grading (POST /grading/{id}) overwrites the whole
+    # result and clears this, since a fresh model pass needs a fresh look.
+    reviewed_at: datetime | None = None
 
     model_config = {"populate_by_name": True}

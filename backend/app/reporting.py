@@ -1,11 +1,16 @@
 import csv
 import io
 
-from app.models.batch import BatchDetail
+from app.models.batch import BatchRow
 
 
-def build_batch_csv(detail: BatchDetail) -> str:
+def build_submissions_csv(rows: list[BatchRow]) -> str:
     """One row per student: roll number, score, and every wrong answer with why.
+
+    Takes a plain list of submission+result pairs rather than a Batch — used
+    both for a single batch's export and for exporting every submission filed
+    against an answer key (which includes papers added one-by-one, not just
+    ones grouped into a batch).
 
     A submission with no grade result yet (paper uploaded but not graded) still
     gets a row instead of silently vanishing from the export, so a teacher can
@@ -30,7 +35,7 @@ def build_batch_csv(detail: BatchDetail) -> str:
         ]
     )
 
-    for row in detail.rows:
+    for row in rows:
         submission = row.submission
         result = row.result
 

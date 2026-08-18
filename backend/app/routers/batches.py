@@ -5,7 +5,7 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 from app.core.security import require_api_key
 from app.db import get_database
 from app.models.batch import Batch, BatchDetail, BatchRow
-from app.reporting import build_batch_csv
+from app.reporting import build_submissions_csv
 from app.repositories.answer_key_repo import AnswerKeyRepository
 from app.repositories.batch_repo import BatchRepository
 from app.repositories.result_repo import ResultRepository
@@ -67,7 +67,7 @@ async def download_batch_csv(
     db: AsyncIOMotorDatabase = Depends(get_database),
 ) -> StreamingResponse:
     detail = await _load_batch_detail(batch_id, db)
-    csv_text = build_batch_csv(detail)
+    csv_text = build_submissions_csv(detail.rows)
     return StreamingResponse(
         iter([csv_text]),
         media_type="text/csv",

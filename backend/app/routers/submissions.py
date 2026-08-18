@@ -1,11 +1,14 @@
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from fastapi.responses import StreamingResponse
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.core.security import require_api_key
 from app.db import get_database
 from app.grading.submission_extraction import extract_submission_responses
 from app.grading.vision_client import AllVisionProvidersExhaustedError, get_vision_client
+from app.models.batch import BatchRow
 from app.models.submission import Submission
+from app.reporting import build_submissions_csv
 from app.repositories.answer_key_repo import AnswerKeyRepository
 from app.repositories.result_repo import ResultRepository
 from app.repositories.submission_repo import SubmissionRepository
@@ -70,6 +73,30 @@ async def upload_submission(
         text_responses=extracted.get("text_responses", []),
     )
     return await SubmissionRepository(db).create(submission)
+
+
+@router.get("/csv")
+async def download_submissions_csv(
+    answer_key_id: str,
+    db: AsyncIOMotorDatabase = Depends(get_database),
+) -> StreamingResponse:
+    """CSV export for every submission filed against this answer key —
+    covers papers added one-by-one or typed in directly, not just ones
+    grouped into a batch (which get their own /batches/{id}/csv). Declared
+    ahead of GET /{submission_id} so "csv" isn't swallowed as a submission id.
+    """
+    submissions = await SubmissionRepository(db).list_by_answer_key(answer_key_id)
+    result_repo = ResultRepository(db)
+    rows = [
+        BatchRow(submission=submission, result=await result_repo.get_by_submission(submission.id))
+        for submission in submissions
+    ]
+    csv_text = build_submissions_csv(rows)
+    return StreamingResponse(
+        iter([csv_text]),
+        media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="submissions-{answer_key_id}.csv"'},
+    )
 
 
 @router.get("/{submission_id}", response_model=Submission)

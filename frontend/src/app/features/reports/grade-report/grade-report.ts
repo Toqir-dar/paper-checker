@@ -33,6 +33,11 @@ export class GradeReport {
   protected readonly errorMessage = signal<string | null>(null);
   protected readonly grading = signal(false);
   protected readonly flaggedOnly = signal(false);
+  protected readonly confirming = signal(false);
+  // Kept separate from `errorMessage`, which swaps out the whole review view
+  // on failure — a confirm failure should leave the report visible with an
+  // inline note, not blank the page the teacher is looking at.
+  protected readonly confirmError = signal<string | null>(null);
 
   /** Teacher overrides, keyed by question id. Cleared whenever the paper is re-graded. */
   private readonly overrides = signal<Record<string, number>>({});
@@ -64,6 +69,7 @@ export class GradeReport {
   private onReport(result: GradeResult): void {
     this.result.set(result);
     this.overrides.set({});
+    this.confirmError.set(null);
     this.loading.set(false);
 
     // What the student actually wrote, and what the key expects — both are needed
@@ -93,6 +99,26 @@ export class GradeReport {
         this.errorMessage.set(
           'Grading failed — the configured LLM providers may be rate-limited. Try again shortly.',
         );
+      },
+    });
+  }
+
+  protected readonly isReviewed = computed(() => !!this.result()?.reviewed_at);
+
+  /** Sends whatever point overrides are currently staged, bakes them into the
+   * stored result, and marks the report reviewed. */
+  protected confirmPaper(): void {
+    this.confirming.set(true);
+    this.confirmError.set(null);
+
+    this.gradingService.confirmReport(this.submissionId, this.overrides()).subscribe({
+      next: (result) => {
+        this.onReport(result);
+        this.confirming.set(false);
+      },
+      error: () => {
+        this.confirming.set(false);
+        this.confirmError.set('Failed to confirm this paper. Try again.');
       },
     });
   }

@@ -16,4 +16,5 @@ export interface GradeResult {
   total_points_awarded: number;
   total_points_possible: number;
   warnings: string[];
+  reviewed_at: string | null;
 }

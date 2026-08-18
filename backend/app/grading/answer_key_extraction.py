@@ -1,6 +1,7 @@
 import logging
 
 from app.grading.document_images import file_to_page_images
+from app.grading.llm_client import LLMClient
 from app.grading.vision_client import VisionClient
 from app.models.answer_key import AnswerKey
 
@@ -10,6 +11,12 @@ _SYSTEM_INSTRUCTION = (
     "You are an assistant that reads scanned exam answer keys or textbook pages and "
     "converts them into structured grading data. Read every page of the provided "
     "document carefully before answering."
+)
+
+_TEXT_SYSTEM_INSTRUCTION = (
+    "You are an assistant that reads exam answer keys or textbook pages, supplied as "
+    "plain text extracted from a Word document, and converts them into structured "
+    "grading data. Read the entire document carefully before answering."
 )
 
 _EXTRACTION_PROMPT = """Extract a structured answer key from this document.
@@ -70,6 +77,24 @@ async def extract_answer_key_from_file(
         system_instruction=_SYSTEM_INSTRUCTION,
     )
     logger.info("Answer key extracted by %s", model)
+
+    _drop_incomplete_mcq_answers(result)
+
+    return AnswerKey.model_validate(result)
+
+
+async def extract_answer_key_from_docx_text(
+    text: str,
+    llm_client: LLMClient,
+) -> AnswerKey:
+    """Parse text pulled from an uploaded .docx answer key into a structured
+    AnswerKey, via a text-only LLM call — no vision model needed since the
+    content is already typed text rather than a scan/photo."""
+    result, model = await llm_client.generate_json(
+        f"{_EXTRACTION_PROMPT}\n\nDocument text:\n{text}",
+        system_instruction=_TEXT_SYSTEM_INSTRUCTION,
+    )
+    logger.info("Answer key extracted from docx text by %s", model)
 
     _drop_incomplete_mcq_answers(result)
 
