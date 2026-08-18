@@ -42,7 +42,7 @@
           <span class="label" style="display: block">questions</span>
         </span>
         <span class="actions">
-          <a [routerLink]="['/answer-keys', key.id, 'submissions']" class="ruled__chevron">→</a>
+          <a [routerLink]="['/answer-keys', key.id, 'edit']" class="btn btn-secondary btn-sm">Edit</a>
           <button
             class="btn btn-secondary btn-sm"
             [disabled]="deletingId() === key.id"
@@ -50,6 +50,7 @@
           >
             {{ deletingId() === key.id ? 'Deleting…' : 'Delete' }}
           </button>
+          <a [routerLink]="['/answer-keys', key.id, 'submissions']" class="ruled__chevron">→</a>
         </span>
       </div>
     }

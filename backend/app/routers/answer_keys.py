@@ -7,6 +7,7 @@ from app.grading.answer_key_extraction import extract_answer_key_from_file
 from app.grading.vision_client import AllVisionProvidersExhaustedError, get_vision_client
 from app.models.answer_key import AnswerKey
 from app.repositories.answer_key_repo import AnswerKeyRepository
+from app.repositories.batch_repo import BatchRepository
 from app.repositories.result_repo import ResultRepository
 from app.repositories.submission_repo import SubmissionRepository
 
@@ -63,6 +64,22 @@ async def get_answer_key(
     return answer_key
 
 
+@router.put(
+    "/{answer_key_id}",
+    response_model=AnswerKey,
+    dependencies=[Depends(require_api_key)],
+)
+async def update_answer_key(
+    answer_key_id: str,
+    answer_key: AnswerKey,
+    db: AsyncIOMotorDatabase = Depends(get_database),
+) -> AnswerKey:
+    updated = await AnswerKeyRepository(db).update(answer_key_id, answer_key)
+    if updated is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Answer key not found")
+    return updated
+
+
 @router.delete(
     "/{answer_key_id}",
     status_code=status.HTTP_204_NO_CONTENT,
@@ -72,10 +89,12 @@ async def delete_answer_key(
     answer_key_id: str,
     db: AsyncIOMotorDatabase = Depends(get_database),
 ) -> None:
-    """Deleting a key also removes every submission filed against it and
-    their grade results — an orphaned submission can't be graded or reviewed."""
+    """Deleting a key also removes every submission filed against it, their
+    grade results, and any batches grouping them — an orphaned submission
+    can't be graded or reviewed, and an orphaned batch has nothing to show."""
     deleted = await AnswerKeyRepository(db).delete(answer_key_id)
     if not deleted:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Answer key not found")
     await ResultRepository(db).delete_by_answer_key(answer_key_id)
     await SubmissionRepository(db).delete_by_answer_key(answer_key_id)
+    await BatchRepository(db).delete_by_answer_key(answer_key_id)

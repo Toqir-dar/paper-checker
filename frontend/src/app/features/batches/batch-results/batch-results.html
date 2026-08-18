@@ -1,0 +1,40 @@
+<a routerLink="/answer-keys" class="back-link">← Answer keys</a>
+
+<div class="page-header">
+  <div>
+    <p class="eyebrow">Batch</p>
+    <h1>Results</h1>
+    @if (detail()) {
+      <p class="page-header__subtitle">
+        {{ gradedCount() }} of {{ detail()!.rows.length }} papers graded.
+      </p>
+    }
+  </div>
+  <div class="actions">
+    <a [href]="csvUrl" class="btn btn-primary" download>Download CSV</a>
+  </div>
+</div>
+
+@if (errorMessage()) {
+  <div class="alert alert-danger mt-6">{{ errorMessage() }}</div>
+}
+
+@if (loading()) {
+  <p class="text-muted mt-6">Loading…</p>
+} @else if (detail() && detail()!.rows.length === 0) {
+  <div class="empty-state">
+    <p class="figure">No papers in this batch</p>
+  </div>
+} @else if (detail()) {
+  <div class="ruled">
+    @for (row of detail()!.rows; track row.submission.id; let i = $index) {
+      <div class="ruled__row">
+        <span class="ruled__index">{{ i + 1 }}</span>
+        <span class="ruled__primary">Roll {{ row.submission.roll_number || '(unreadable)' }}</span>
+        <span class="ruled__secondary">{{ wrongAnswers(row) }}</span>
+        <span class="ruled__score">{{ scoreLabel(row) }}</span>
+        <a [routerLink]="['/submissions', row.submission.id, 'report']" class="ruled__chevron">→</a>
+      </div>
+    }
+  </div>
+}

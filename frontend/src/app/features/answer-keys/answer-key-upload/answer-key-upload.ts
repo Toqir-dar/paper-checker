@@ -33,7 +33,10 @@ export class AnswerKeyUpload {
     this.errorMessage.set(null);
 
     this.answerKeyService.uploadFile(file).subscribe({
-      next: (created) => this.router.navigate(['/answer-keys', created.id, 'submissions']),
+      // Land on the review/edit form, not submissions — the vision model's
+      // extracted questions and points need a human check before they're
+      // used to grade anything.
+      next: (created) => this.router.navigate(['/answer-keys', created.id, 'edit']),
       error: (err) => {
         this.uploading.set(false);
         this.errorMessage.set(

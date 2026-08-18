@@ -39,6 +39,14 @@ class SubmissionRepository:
             results.append(Submission.model_validate(doc))
         return results
 
+    async def list_by_batch(self, batch_id: str) -> list[Submission]:
+        cursor = self._collection.find({"batch_id": batch_id})
+        results = []
+        async for doc in cursor:
+            doc["_id"] = str(doc["_id"])
+            results.append(Submission.model_validate(doc))
+        return results
+
     async def delete(self, submission_id: str) -> bool:
         result = await self._collection.delete_one({"_id": ObjectId(submission_id)})
         return result.deleted_count > 0
@@ -46,4 +54,9 @@ class SubmissionRepository:
     async def delete_by_answer_key(self, answer_key_id: str) -> int:
         """Cascade delete when the parent answer key is removed."""
         result = await self._collection.delete_many({"answer_key_id": answer_key_id})
+        return result.deleted_count
+
+    async def delete_by_batch(self, batch_id: str) -> int:
+        """Cascade delete when the parent batch is removed."""
+        result = await self._collection.delete_many({"batch_id": batch_id})
         return result.deleted_count

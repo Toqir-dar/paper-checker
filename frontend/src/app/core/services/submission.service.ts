@@ -27,10 +27,25 @@ export class SubmissionService {
     return this.http.post<Submission>(this.baseUrl, draft);
   }
 
-  uploadFile(answerKeyId: string, studentName: string, file: File): Observable<Submission> {
+  /**
+   * `studentName` is omitted by the batch-upload flow, which never asks for a
+   * name per paper — the backend falls back to the roll number it detects.
+   * `batchId` groups the created submission under a batch for the batch
+   * results view/CSV.
+   */
+  uploadFile(
+    answerKeyId: string,
+    file: File,
+    options?: { studentName?: string; batchId?: string },
+  ): Observable<Submission> {
     const formData = new FormData();
     formData.append('answer_key_id', answerKeyId);
-    formData.append('student_name', studentName);
+    if (options?.studentName) {
+      formData.append('student_name', options.studentName);
+    }
+    if (options?.batchId) {
+      formData.append('batch_id', options.batchId);
+    }
     formData.append('file', file);
     return this.http.post<Submission>(`${this.baseUrl}/upload`, formData);
   }

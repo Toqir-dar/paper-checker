@@ -11,9 +11,14 @@
   </div>
   <div class="actions">
     <a
-      [routerLink]="['/answer-keys', answerKeyId, 'submissions', 'upload']"
+      [routerLink]="['/answer-keys', answerKeyId, 'batches', 'new']"
       class="btn btn-primary"
-      >Add papers</a
+      >Batch grade a stack</a
+    >
+    <a
+      [routerLink]="['/answer-keys', answerKeyId, 'submissions', 'upload']"
+      class="btn btn-secondary"
+      >Add one paper</a
     >
     <a [routerLink]="['/answer-keys', answerKeyId, 'submissions', 'new']" class="btn btn-secondary"
       >Type one in</a
@@ -62,6 +67,20 @@
           </button>
         </span>
       </div>
+    }
+  </div>
+}
+
+@if (batches().length > 0) {
+  <div class="section-rule">
+    <h2>Past batches</h2>
+  </div>
+  <div class="ruled">
+    @for (batch of batches(); track batch.id) {
+      <a [routerLink]="['/batches', batch.id]" class="ruled__row ruled__row--clickable">
+        <span class="ruled__primary">{{ batch.created_at | date: 'medium' }}</span>
+        <span class="ruled__chevron">→</span>
+      </a>
     }
   </div>
 }

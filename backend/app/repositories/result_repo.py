@@ -43,3 +43,10 @@ class ResultRepository:
         """Cascade delete when the parent answer key is removed."""
         result = await self._collection.delete_many({"answer_key_id": answer_key_id})
         return result.deleted_count
+
+    async def delete_by_submission_ids(self, submission_ids: list[str]) -> int:
+        """Cascade delete when a parent batch (and its submissions) is removed."""
+        if not submission_ids:
+            return 0
+        result = await self._collection.delete_many({"submission_id": {"$in": submission_ids}})
+        return result.deleted_count

@@ -1,0 +1,87 @@
+<a [routerLink]="['/answer-keys', answerKeyId, 'submissions']" class="back-link">← Back to papers</a>
+
+<div class="page-header">
+  <div>
+    <p class="eyebrow">Batch</p>
+    <h1>Grade a stack</h1>
+    <p class="page-header__subtitle">
+      Select every scanned paper from the folder at once. Each page is read for its roll number,
+      matched against the answer key by content, and graded automatically — no per-student typing.
+    </p>
+  </div>
+</div>
+
+@if (errorMessage()) {
+  <div class="alert alert-danger mt-6">{{ errorMessage() }}</div>
+}
+
+<div class="card">
+  <div class="field">
+    <label class="label" for="files">Scanned papers (PDF or image — select all of them at once)</label>
+    <input
+      id="files"
+      type="file"
+      accept=".pdf,image/*"
+      multiple
+      [disabled]="running()"
+      (change)="onFilesSelected($event)"
+    />
+  </div>
+
+  @if (files().length > 0 && !batchId()) {
+    <p class="text-muted">{{ files().length }} papers selected.</p>
+  }
+
+  <div class="row gap-3 mt-6">
+    <button
+      type="button"
+      class="btn btn-primary"
+      [disabled]="running() || files().length === 0 || batchId() !== null"
+      (click)="start()"
+    >
+      {{ running() ? 'Grading…' : 'Start batch' }}
+    </button>
+    @if (batchId() && !running()) {
+      <button type="button" class="btn btn-secondary" (click)="viewResults()">
+        View results &amp; download CSV
+      </button>
+    }
+  </div>
+
+  @if (batchId()) {
+    <div class="progress mt-6">
+      <div class="progress__fill" [style.width.%]="(settledCount() / files().length) * 100"></div>
+    </div>
+    <p class="mono muted mt-4" style="font-size: 11.5px">
+      {{ doneCount() }} graded · {{ failedCount() }} failed ·
+      {{ files().length - settledCount() }} left
+    </p>
+
+    <div class="ruled mt-6">
+      @for (fp of files(); track fp.file.name + $index; let i = $index) {
+        <div class="ruled__row">
+          <span class="ruled__index">{{ i + 1 }}</span>
+          <span class="ruled__primary">{{ fp.file.name }}</span>
+          <span class="ruled__secondary">
+            @if (fp.status === 'done') {
+              Roll {{ fp.rollNumber }} · {{ fp.score }}
+            } @else if (fp.status === 'failed') {
+              {{ fp.errorMessage }}
+            } @else if (fp.status === 'processing') {
+              Reading…
+            } @else {
+              Waiting
+            }
+          </span>
+          <span
+            class="badge"
+            [class.badge-success]="fp.status === 'done'"
+            [class.badge-danger]="fp.status === 'failed'"
+          >
+            {{ fp.status }}
+          </span>
+        </div>
+      }
+    </div>
+  }
+</div>

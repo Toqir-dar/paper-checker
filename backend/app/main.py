@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.core.logging import setup_logging
 from app.db import close_mongo_connection, connect_to_mongo
-from app.routers import answer_keys, grading, reports, submissions
+from app.routers import answer_keys, batches, grading, reports, submissions
 
 
 @asynccontextmanager
@@ -28,6 +28,7 @@ app.add_middleware(
 )
 
 app.include_router(answer_keys.router)
+app.include_router(batches.router)
 app.include_router(submissions.router)
 app.include_router(grading.router)
 app.include_router(reports.router)

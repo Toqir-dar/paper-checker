@@ -27,6 +27,12 @@ def _build_prompt(answer_key: AnswerKey) -> str:
 - Multiple-choice questions: {mcq_questions}
 - Free-text questions: {text_questions}
 
+First, find the student's roll number / registration number / roll no. — it is
+usually printed or handwritten near the top of the first page, often next to a
+label like "Roll No.", "Reg. No.", "ID", or similar. Report it as roll_number,
+transcribed exactly as written (digits and letters, no label text). If no such
+number is visible anywhere on the page, use an empty string — do not guess.
+
 Match each answer on the page to the question it belongs to primarily by
 CONTENT — compare what the student wrote (or which options are listed) against
 each question's question_text above — not just by whatever number is
@@ -51,6 +57,7 @@ question's answer rather than guessing.
 
 Respond as JSON only, in exactly this shape:
 {{
+  "roll_number": "...",
   "mcq_responses": [
     {{"question_id": "q1", "selected_option": "B", "detected_label": "1"}}
   ],

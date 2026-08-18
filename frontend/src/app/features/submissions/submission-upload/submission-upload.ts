@@ -41,16 +41,18 @@ export class SubmissionUpload {
     this.uploading.set(true);
     this.errorMessage.set(null);
 
-    this.submissionService.uploadFile(this.answerKeyId, this.studentName.trim(), file).subscribe({
-      next: () => this.router.navigate(['/answer-keys', this.answerKeyId, 'submissions']),
-      error: (err) => {
-        this.uploading.set(false);
-        this.errorMessage.set(
-          err.status === 503
-            ? 'The vision model is currently rate-limited across all configured providers. Try again shortly.'
-            : 'Failed to process the file. Make sure it clearly shows the answers, then try again.',
-        );
-      },
-    });
+    this.submissionService
+      .uploadFile(this.answerKeyId, file, { studentName: this.studentName.trim() })
+      .subscribe({
+        next: () => this.router.navigate(['/answer-keys', this.answerKeyId, 'submissions']),
+        error: (err) => {
+          this.uploading.set(false);
+          this.errorMessage.set(
+            err.status === 503
+              ? 'The vision model is currently rate-limited across all configured providers. Try again shortly.'
+              : 'Failed to process the file. Make sure it clearly shows the answers, then try again.',
+          );
+        },
+      });
   }
 }

@@ -26,12 +26,18 @@ async def create_submission(
 @router.post("/upload", response_model=Submission, dependencies=[Depends(require_api_key)])
 async def upload_submission(
     answer_key_id: str = Form(...),
-    student_name: str = Form(...),
+    # Optional so the batch-upload flow — which never asks a teacher to type
+    # a name per paper — can rely on the roll number the vision model reads
+    # off the page instead. Still required in spirit for the one-by-one
+    # upload form, which always sends it.
+    student_name: str | None = Form(None),
+    batch_id: str | None = Form(None),
     file: UploadFile = File(...),
     db: AsyncIOMotorDatabase = Depends(get_database),
 ) -> Submission:
     """Upload a scanned/PDF student answer sheet; a vision model transcribes the
-    MCQ selections and free-text answers, matched to the answer key's questions."""
+    MCQ selections, free-text answers, and roll number, matched to the answer
+    key's questions."""
     content_type = file.content_type or ""
     if content_type != "application/pdf" and not content_type.startswith("image/"):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=_SUPPORTED_UPLOAD_TYPES_HINT)
@@ -52,9 +58,14 @@ async def upload_submission(
             detail="Vision extraction is currently rate-limited across all configured providers. Try again shortly.",
         ) from exc
 
+    roll_number = str(extracted.get("roll_number") or "").strip()
+    resolved_name = (student_name or "").strip() or (f"Roll {roll_number}" if roll_number else "Unknown student")
+
     submission = Submission(
         answer_key_id=answer_key_id,
-        student_name=student_name,
+        student_name=resolved_name,
+        roll_number=roll_number,
+        batch_id=batch_id,
         mcq_responses=extracted.get("mcq_responses", []),
         text_responses=extracted.get("text_responses", []),
     )

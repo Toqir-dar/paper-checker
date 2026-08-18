@@ -21,6 +21,10 @@ export class AnswerKeyService {
     return this.http.post<AnswerKey>(this.baseUrl, draft);
   }
 
+  update(id: string, draft: AnswerKeyDraft): Observable<AnswerKey> {
+    return this.http.put<AnswerKey>(`${this.baseUrl}/${id}`, draft);
+  }
+
   uploadFile(file: File): Observable<AnswerKey> {
     const formData = new FormData();
     formData.append('file', file);

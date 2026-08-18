@@ -1,16 +1,29 @@
 <div class="page-header">
   <div>
-    <h1>New Answer Key</h1>
+    <h1>{{ isEditMode ? 'Edit answer key' : 'New answer key' }}</h1>
     <p class="page-header__subtitle">
-      Define the correct MCQ options and grading rubrics for free-text questions.
+      @if (isEditMode) {
+        Review and adjust the questions, correct answers, and points — including whatever a
+        photographed upload got wrong.
+      } @else {
+        Define the correct MCQ options and grading rubrics for free-text questions.
+      }
     </p>
   </div>
-  <a routerLink="/answer-keys" class="btn btn-ghost">Cancel</a>
+  <a
+    [routerLink]="isEditMode ? ['/answer-keys', answerKeyId, 'submissions'] : ['/answer-keys']"
+    class="btn btn-ghost"
+    >{{ isEditMode ? 'Done' : 'Cancel' }}</a
+  >
 </div>
 
 @if (errorMessage()) {
   <div class="alert alert-danger">{{ errorMessage() }}</div>
 }
+
+@if (loading()) {
+  <p class="text-muted">Loading…</p>
+} @else {
 
 <form [formGroup]="form" (ngSubmit)="submit()" class="stack gap-4">
   <div class="card">
@@ -160,8 +173,14 @@
 
   <div class="row gap-3">
     <button type="submit" class="btn btn-primary" [disabled]="submitting()">
-      {{ submitting() ? 'Saving…' : 'Save answer key' }}
+      {{ submitting() ? 'Saving…' : isEditMode ? 'Save changes' : 'Save answer key' }}
     </button>
-    <a routerLink="/answer-keys" class="btn btn-ghost">Cancel</a>
+    <a
+      [routerLink]="isEditMode ? ['/answer-keys', answerKeyId, 'submissions'] : ['/answer-keys']"
+      class="btn btn-ghost"
+      >Cancel</a
+    >
   </div>
 </form>
+
+}

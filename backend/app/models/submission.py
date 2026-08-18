@@ -23,6 +23,12 @@ class Submission(BaseModel):
     id: str | None = Field(default=None, validation_alias="_id", serialization_alias="id")
     answer_key_id: str
     student_name: str
+    # Read off the page by the same vision pass that transcribes the answers —
+    # empty when the page has no roll number or it couldn't be made out.
+    roll_number: str = ""
+    # Set only for submissions created through the batch-upload flow; groups
+    # them for the batch results view/CSV. None for one-off submissions.
+    batch_id: str | None = None
     mcq_responses: list[McqResponse] = Field(default_factory=list)
     text_responses: list[TextResponse] = Field(default_factory=list)
 
