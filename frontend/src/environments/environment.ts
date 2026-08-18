@@ -1,4 +1,4 @@
 export const environment = {
   production: true,
-  apiBaseUrl: 'https://toqir12-paper-check.hf.space',
+  apiBaseUrl: 'https://paper-checker-rust.vercel.app',
 };
