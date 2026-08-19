@@ -29,6 +29,14 @@ class Settings(BaseSettings):
     )
 
     cors_origins_csv: str = Field(default="http://localhost:4200", validation_alias="CORS_ORIGINS")
+    # Vercel preview/production URLs for this project carry a per-deployment hash
+    # (e.g. paper-checker-fvwt-8jxlygvhl-toqir-dars-projects.vercel.app) that changes
+    # on every deploy, so an exact CORS_ORIGINS entry would need updating each time.
+    # This regex allows any such URL for the project without repeated config changes.
+    cors_origin_regex: str = Field(
+        default=r"^https://paper-checker(-[a-zA-Z0-9]+)*-toqir-dars-projects\.vercel\.app$",
+        validation_alias="CORS_ORIGIN_REGEX",
+    )
 
     api_key: str = Field(default="", validation_alias="API_KEY")
 
