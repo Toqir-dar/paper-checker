@@ -32,12 +32,13 @@ class Settings(BaseSettings):
         default="http://localhost:4200,https://paper-checker-fvwt.vercel.app",
         validation_alias="CORS_ORIGINS",
     )
-    # Vercel preview/production URLs for this project carry a per-deployment hash
-    # (e.g. paper-checker-fvwt-8jxlygvhl-toqir-dars-projects.vercel.app) that changes
-    # on every deploy, so an exact CORS_ORIGINS entry would need updating each time.
-    # This regex allows any such URL for the project without repeated config changes.
+    # Vercel URLs for this project vary in shape: the stable production alias
+    # (paper-checker-fvwt.vercel.app) has no hash, while preview/production
+    # deployment URLs carry a per-deployment hash and team suffix
+    # (paper-checker-fvwt-8jxlygvhl-toqir-dars-projects.vercel.app) that changes
+    # on every deploy. This regex allows any such URL without repeated config changes.
     cors_origin_regex: str = Field(
-        default=r"^https://paper-checker(-[a-zA-Z0-9]+)*-toqir-dars-projects\.vercel\.app$",
+        default=r"^https://paper-checker(-[a-zA-Z0-9]+)*\.vercel\.app$",
         validation_alias="CORS_ORIGIN_REGEX",
     )
 
