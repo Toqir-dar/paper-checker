@@ -28,7 +28,10 @@ class Settings(BaseSettings):
         validation_alias="OPENROUTER_VISION_MODELS",
     )
 
-    cors_origins_csv: str = Field(default="http://localhost:4200", validation_alias="CORS_ORIGINS")
+    cors_origins_csv: str = Field(
+        default="http://localhost:4200,https://paper-checker-fvwt.vercel.app",
+        validation_alias="CORS_ORIGINS",
+    )
     # Vercel preview/production URLs for this project carry a per-deployment hash
     # (e.g. paper-checker-fvwt-8jxlygvhl-toqir-dars-projects.vercel.app) that changes
     # on every deploy, so an exact CORS_ORIGINS entry would need updating each time.
