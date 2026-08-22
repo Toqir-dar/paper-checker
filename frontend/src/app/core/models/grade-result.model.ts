@@ -1,3 +1,9 @@
+export interface CriterionGrade {
+  description: string;
+  max_points: number;
+  awarded_points: number;
+}
+
 export interface QuestionGrade {
   question_id: string;
   question_text: string;
@@ -5,7 +11,8 @@ export interface QuestionGrade {
   points_awarded: number;
   points_possible: number;
   feedback: string;
-  graded_by: string; // "mcq" | "groq:<model>" | "gemini:<model>"
+  graded_by: string; // "mcq" | "rubric:<model>" | "cosine_similarity"
+  criteria?: CriterionGrade[];
 }
 
 export interface GradeResult {

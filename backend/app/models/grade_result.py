@@ -3,6 +3,15 @@ from datetime import datetime
 from pydantic import BaseModel, Field
 
 
+class CriterionGrade(BaseModel):
+    """How one rubric criterion was scored for a single answer. Empty for MCQ
+    grades and for the similarity fallback, which have no per-criterion detail."""
+
+    description: str
+    max_points: float
+    awarded_points: float
+
+
 class QuestionGrade(BaseModel):
     question_id: str
     question_text: str = ""
@@ -10,7 +19,8 @@ class QuestionGrade(BaseModel):
     points_awarded: float
     points_possible: float
     feedback: str = ""
-    graded_by: str  # "mcq" | "llm:<model>"
+    graded_by: str  # "mcq" | "rubric:<model>" | "cosine_similarity"
+    criteria: list[CriterionGrade] = Field(default_factory=list)
 
 
 class GradeResult(BaseModel):

@@ -7,3 +7,48 @@
     position: static;
   }
 }
+
+/* Per-criterion rubric breakdown inside each written-answer grade. Hairline-ruled
+   rows in the house style; award colouring stays restrained — green for a fully-met
+   criterion, the marking red only where one earned nothing. */
+.rubric {
+  margin-top: var(--s4);
+  border-top: 1px solid var(--rule);
+}
+.rubric > .label {
+  display: block;
+  margin: var(--s3) 0 var(--s2);
+}
+.rubric__row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s3);
+  padding: 7px 0;
+  border-bottom: 1px solid var(--rule);
+}
+.rubric__row:last-child {
+  border-bottom: none;
+}
+.rubric__desc {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: var(--text-sm);
+  color: var(--ink-soft);
+}
+.rubric__pts {
+  flex: none;
+  font-size: var(--text-xs);
+  color: var(--ink-faint);
+}
+.rubric__row--met .rubric__pts {
+  color: var(--pass);
+}
+.rubric__row--partial .rubric__pts {
+  color: var(--ink);
+}
+.rubric__row--missed .rubric__desc {
+  color: var(--ink-faint);
+}
+.rubric__row--missed .rubric__pts {
+  color: var(--mark);
+}

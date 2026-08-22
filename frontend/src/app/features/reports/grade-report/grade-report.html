@@ -120,6 +120,18 @@
             <p class="quote">{{ grade.feedback }}</p>
           }
 
+          @if (grade.criteria?.length) {
+            <div class="rubric">
+              <span class="label">Rubric</span>
+              @for (c of grade.criteria; track $index) {
+                <div class="rubric__row rubric__row--{{ criterionStatus(c) }}">
+                  <span class="rubric__desc">{{ c.description }}</span>
+                  <span class="rubric__pts mono">{{ c.awarded_points }} / {{ c.max_points }}</span>
+                </div>
+              }
+            </div>
+          }
+
           <div class="qgrade__scoring">
             <div class="stepper">
               <button

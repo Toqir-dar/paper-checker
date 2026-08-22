@@ -2,7 +2,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { Component, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { AnswerKey } from '../../../core/models/answer-key.model';
-import { GradeResult, QuestionGrade } from '../../../core/models/grade-result.model';
+import { CriterionGrade, GradeResult, QuestionGrade } from '../../../core/models/grade-result.model';
 import { Submission } from '../../../core/models/submission.model';
 import { AnswerKeyService } from '../../../core/services/answer-key.service';
 import { GradingService } from '../../../core/services/grading.service';
@@ -237,6 +237,13 @@ export class GradeReport {
     if (points === grade.points_possible) return 'full marks';
     if (points === 0) return 'no marks';
     return 'as scored';
+  }
+
+  /** Per-criterion outcome, used only for styling the rubric breakdown. */
+  protected criterionStatus(c: CriterionGrade): 'met' | 'partial' | 'missed' {
+    if (c.awarded_points >= c.max_points) return 'met';
+    if (c.awarded_points <= 0) return 'missed';
+    return 'partial';
   }
 
   protected meterClass(): string {
