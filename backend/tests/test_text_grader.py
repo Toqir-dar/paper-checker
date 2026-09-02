@@ -153,3 +153,12 @@ async def test_exhaustion_warning_is_emitted_only_once_across_responses():
     assert sum("unavailable" in w for w in warnings) == 1
     # Once exhausted, we stop calling the LLM for the remaining responses.
     assert client.calls == 1
+
+
+async def test_unexpected_exception_falls_back_to_similarity():
+    client = _FakeClient(raises=RuntimeError("Unexpected connection drop"))
+    grades, warnings = await grade_text_responses(_responses(), [_answer()], client)
+
+    assert len(grades) == 1
+    assert grades[0].graded_by == "cosine_similarity"
+    assert any("unavailable" in w for w in warnings)

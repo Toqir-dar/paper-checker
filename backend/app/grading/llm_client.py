@@ -1,6 +1,6 @@
 import asyncio
-import json
 import logging
+import random
 from typing import Any, Protocol
 
 import groq as groq_sdk
@@ -8,17 +8,16 @@ from google import genai
 from google.genai import errors as genai_errors
 
 from app.config import settings
+from app.grading.json_utils import safe_parse_json
 
 logger = logging.getLogger(__name__)
 
-# HTTP statuses that mean "this key/model combo is unusable right now" — worth
-# falling back on, as opposed to a genuine request error we should surface.
-# 404 and 400 are included because both Groq and Gemini retire/rename free
-# models often enough that a stale or decommissioned model ID in
-# GROQ_MODELS/GEMINI_MODELS shouldn't take down the whole chain — just skip it
-# and try the next configured model (Groq returns 400 model_decommissioned for
-# a retired model, not 404).
-_RETRYABLE_STATUS_CODES = {400, 404, 429, 500, 503}
+# HTTP statuses that mean "this key/model combo is unusable right now or transiently unavailable"
+_RETRYABLE_STATUS_CODES = {400, 404, 408, 429, 500, 502, 503, 504}
+_NON_FATAL_KEY_STATUS_CODES = {401, 403}
+
+_MAX_RETRIES_PER_MODEL = 2
+_BASE_RETRY_DELAY = 2.0
 
 
 class AllProvidersExhaustedError(Exception):
@@ -31,12 +30,12 @@ class _ProviderChain(Protocol):
 
         Returns (parsed_json, "provider:model") on success, or None if every
         combination in this provider was exhausted (caller moves to the next
-        provider). Raises only for genuinely non-retryable errors.
+        provider).
         """
 
 
 class _GroqChain:
-    """Falls back across every configured Groq API key/model combination."""
+    """Falls back across every configured Groq API key/model combination with retry on 429."""
 
     def __init__(self, api_keys: list[str], models: list[str]) -> None:
         self._clients = [groq_sdk.Groq(api_key=key) for key in api_keys]
@@ -52,34 +51,76 @@ class _GroqChain:
         messages.append({"role": "user", "content": prompt})
 
         for client, model in self._combinations():
-            try:
-                response = await asyncio.to_thread(
-                    client.chat.completions.create,
-                    model=model,
-                    messages=messages,
-                    response_format={"type": "json_object"},
-                    temperature=0,
-                )
-            except groq_sdk.APIStatusError as exc:
-                if exc.status_code in _RETRYABLE_STATUS_CODES:
-                    logger.warning(
-                        "Groq model %s unavailable (status %s), falling back: %s", model, exc.status_code, exc
+            for attempt in range(_MAX_RETRIES_PER_MODEL + 1):
+                try:
+                    response = await asyncio.to_thread(
+                        client.chat.completions.create,
+                        model=model,
+                        messages=messages,
+                        response_format={"type": "json_object"},
+                        temperature=0,
                     )
-                    continue
-                raise
+                except groq_sdk.APIStatusError as exc:
+                    status_code = exc.status_code
+                    if status_code in _NON_FATAL_KEY_STATUS_CODES:
+                        logger.warning(
+                            "Groq key/model %s permission issue (status %s), skipping to next: %s",
+                            model,
+                            status_code,
+                            exc,
+                        )
+                        break
+                    if status_code in _RETRYABLE_STATUS_CODES:
+                        if status_code == 429 and attempt < _MAX_RETRIES_PER_MODEL:
+                            delay = _BASE_RETRY_DELAY * (2**attempt) + random.uniform(0.1, 0.5)
+                            logger.warning(
+                                "Groq model %s rate-limited (429), retrying in %.1fs (attempt %d/%d)...",
+                                model,
+                                delay,
+                                attempt + 1,
+                                _MAX_RETRIES_PER_MODEL,
+                            )
+                            await asyncio.sleep(delay)
+                            continue
+                        logger.warning(
+                            "Groq model %s unavailable (status %s), falling back: %s",
+                            model,
+                            status_code,
+                            exc,
+                        )
+                        break
+                    logger.warning("Groq model %s non-retryable API status error: %s", model, exc)
+                    break
+                except (groq_sdk.APIConnectionError, groq_sdk.APITimeoutError) as exc:
+                    if attempt < _MAX_RETRIES_PER_MODEL:
+                        delay = _BASE_RETRY_DELAY * (2**attempt) + random.uniform(0.1, 0.5)
+                        logger.warning(
+                            "Groq model %s connection error, retrying in %.1fs: %s",
+                            model,
+                            delay,
+                            exc,
+                        )
+                        await asyncio.sleep(delay)
+                        continue
+                    logger.warning("Groq model %s connection failed after retries: %s", model, exc)
+                    break
+                except Exception as exc:
+                    logger.warning("Groq model %s unexpected error, falling back: %s", model, exc)
+                    break
 
-            text = (response.choices[0].message.content or "").strip()
-            try:
-                return json.loads(text), f"groq:{model}"
-            except json.JSONDecodeError as exc:
-                logger.warning("Groq model %s returned non-JSON output, falling back: %s", model, exc)
-                continue
+                text = (response.choices[0].message.content or "").strip()
+                try:
+                    parsed = safe_parse_json(text)
+                    return parsed, f"groq:{model}"
+                except ValueError as exc:
+                    logger.warning("Groq model %s returned unparseable JSON output, falling back: %s", model, exc)
+                    break
 
         return None
 
 
 class _GeminiChain:
-    """Falls back across every configured Gemini API key/model combination."""
+    """Falls back across every configured Gemini API key/model combination with retry on 429."""
 
     def __init__(self, api_keys: list[str], models: list[str]) -> None:
         self._clients = [genai.Client(api_key=key) for key in api_keys]
@@ -90,45 +131,71 @@ class _GeminiChain:
 
     async def call(self, prompt: str, system_instruction: str | None) -> tuple[dict[str, Any], str] | None:
         for client, model in self._combinations():
-            try:
-                response = await asyncio.to_thread(
-                    client.models.generate_content,
-                    model=model,
-                    contents=prompt,
-                    config={
-                        "system_instruction": system_instruction,
-                        "response_mime_type": "application/json",
-                        "temperature": 0,
-                    },
-                )
-            except genai_errors.APIError as exc:
-                status_code = getattr(exc, "code", None)
-                if status_code in _RETRYABLE_STATUS_CODES:
-                    logger.warning(
-                        "Gemini model %s unavailable (status %s), falling back: %s", model, status_code, exc
+            for attempt in range(_MAX_RETRIES_PER_MODEL + 1):
+                try:
+                    response = await asyncio.to_thread(
+                        client.models.generate_content,
+                        model=model,
+                        contents=prompt,
+                        config={
+                            "system_instruction": system_instruction,
+                            "response_mime_type": "application/json",
+                            "temperature": 0,
+                        },
                     )
-                    continue
-                raise
+                except genai_errors.APIError as exc:
+                    status_code = getattr(exc, "code", None)
+                    if status_code in _NON_FATAL_KEY_STATUS_CODES:
+                        logger.warning(
+                            "Gemini key/model %s permission issue (status %s), skipping to next: %s",
+                            model,
+                            status_code,
+                            exc,
+                        )
+                        break
+                    if status_code in _RETRYABLE_STATUS_CODES:
+                        if status_code == 429 and attempt < _MAX_RETRIES_PER_MODEL:
+                            delay = _BASE_RETRY_DELAY * (2**attempt) + random.uniform(0.1, 0.5)
+                            logger.warning(
+                                "Gemini model %s rate-limited (429), retrying in %.1fs (attempt %d/%d)...",
+                                model,
+                                delay,
+                                attempt + 1,
+                                _MAX_RETRIES_PER_MODEL,
+                            )
+                            await asyncio.sleep(delay)
+                            continue
+                        logger.warning(
+                            "Gemini model %s unavailable (status %s), falling back: %s",
+                            model,
+                            status_code,
+                            exc,
+                        )
+                        break
+                    logger.warning("Gemini model %s API error: %s", model, exc)
+                    break
+                except Exception as exc:
+                    logger.warning("Gemini model %s unexpected error, falling back: %s", model, exc)
+                    break
 
-            text = (response.text or "").strip()
-            try:
-                return json.loads(text), f"gemini:{model}"
-            except json.JSONDecodeError as exc:
-                logger.warning("Gemini model %s returned non-JSON output, falling back: %s", model, exc)
-                continue
+                text = (response.text or "").strip()
+                try:
+                    parsed = safe_parse_json(text)
+                    return parsed, f"gemini:{model}"
+                except ValueError as exc:
+                    logger.warning("Gemini model %s returned unparseable JSON output, falling back: %s", model, exc)
+                    break
 
         return None
 
 
 class LLMClient:
-    """Multi-provider LLM client with automatic fallback.
+    """Multi-provider LLM client with automatic fallback and rate limit retries.
 
     Tries Groq first — fast inference and a generous free tier — falling back
     across every configured Groq API key/model combination. Only once all of
     those are exhausted does it move to Gemini, again falling back across every
-    configured key/model combination there. This lets two independent free
-    tiers act as one higher-capacity pool instead of the grading pipeline
-    failing when a single provider's quota is hit.
+    configured key/model combination there.
     """
 
     def __init__(self) -> None:
@@ -145,6 +212,8 @@ class LLMClient:
                 "GEMINI_API_KEYS/GEMINI_MODELS in .env"
             )
 
+        self._semaphore = asyncio.Semaphore(2)
+
     async def generate_json(
         self,
         prompt: str,
@@ -156,10 +225,11 @@ class LLMClient:
 
         Returns (parsed_json, "provider:model" that served the request).
         """
-        for chain in self._chains:
-            result = await chain.call(prompt, system_instruction)
-            if result is not None:
-                return result
+        async with self._semaphore:
+            for chain in self._chains:
+                result = await chain.call(prompt, system_instruction)
+                if result is not None:
+                    return result
 
         raise AllProvidersExhaustedError("All configured provider/key/model combinations failed")
 

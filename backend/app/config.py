@@ -16,15 +16,14 @@ class Settings(BaseSettings):
         validation_alias="GROQ_MODELS",
     )
 
-    gemini_api_keys_csv: str = Field(default="", validation_alias="GEMINI_API_KEYS")
     gemini_models_csv: str = Field(
-        default="gemini-3.6-flash,gemini-3.5-flash-lite",
+        default="gemini-2.5-flash,gemini-2.0-flash,gemini-1.5-flash,gemini-2.0-flash-lite",
         validation_alias="GEMINI_MODELS",
     )
 
     openrouter_api_keys_csv: str = Field(default="", validation_alias="OPENROUTER_API_KEYS")
     openrouter_vision_models_csv: str = Field(
-        default="google/gemma-4-31b-it:free,google/gemma-4-26b-a4b-it:free,nvidia/nemotron-nano-12b-v2-vl:free",
+        default="minimax/minimax-m3:free,google/gemma-4-31b-it:free,google/gemma-4-26b-a4b-it:free",
         validation_alias="OPENROUTER_VISION_MODELS",
     )
 

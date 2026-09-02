@@ -1,2 +1,5 @@
-/* No component-specific overrides yet — layout comes entirely from the
-   shared design tokens in styles.css (page-header, card, ruled, progress). */
+.badge-warning {
+  background-color: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fde68a;
+}

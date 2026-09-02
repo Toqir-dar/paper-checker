@@ -41,6 +41,11 @@
     >
       {{ running() ? 'Grading…' : 'Start batch' }}
     </button>
+    @if (batchId() && !running() && failedCount() > 0) {
+      <button type="button" class="btn btn-primary" (click)="retryFailed()">
+        Retry {{ failedCount() }} failed {{ failedCount() === 1 ? 'paper' : 'papers' }}
+      </button>
+    }
     @if (batchId() && !running()) {
       <button type="button" class="btn btn-secondary" (click)="viewResults()">
         View results &amp; download CSV
@@ -67,8 +72,10 @@
               Roll {{ fp.rollNumber }} · {{ fp.score }}
             } @else if (fp.status === 'failed') {
               {{ fp.errorMessage }}
+            } @else if (fp.status === 'retrying') {
+              {{ fp.errorMessage || 'Retrying…' }}
             } @else if (fp.status === 'processing') {
-              Reading…
+              {{ fp.progressDetail || 'Processing…' }}
             } @else {
               Waiting
             }
@@ -77,6 +84,7 @@
             class="badge"
             [class.badge-success]="fp.status === 'done'"
             [class.badge-danger]="fp.status === 'failed'"
+            [class.badge-warning]="fp.status === 'retrying'"
           >
             {{ fp.status }}
           </span>

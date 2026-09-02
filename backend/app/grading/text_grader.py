@@ -1,8 +1,12 @@
+import logging
+
 from app.grading.llm_client import AllProvidersExhaustedError, LLMClient
 from app.grading.similarity import cosine_similarity
 from app.models.answer_key import RubricCriterion, TextAnswer
 from app.models.grade_result import CriterionGrade, QuestionGrade
 from app.models.submission import TextResponse
+
+logger = logging.getLogger(__name__)
 
 # When the LLM's rubric score and the local embedding similarity disagree by more
 # than this (both as fractions of the total), flag the question for a human look.
@@ -143,6 +147,13 @@ async def grade_text_responses(
                 # Every provider/key/model is exhausted. Stop trying for the rest of this
                 # paper and note it once, rather than hammering dead providers per answer.
                 llm_available = False
+                warnings.append(
+                    "LLM rubric grader was unavailable — written answers were scored by "
+                    "semantic similarity only. Review these scores carefully."
+                )
+            except Exception as exc:
+                llm_available = False
+                logger.warning("LLM rubric grader failed with unexpected error, falling back: %s", exc)
                 warnings.append(
                     "LLM rubric grader was unavailable — written answers were scored by "
                     "semantic similarity only. Review these scores carefully."
