@@ -68,19 +68,13 @@ async def test_vision_client_retry_on_429(monkeypatch):
     monkeypatch.setattr("app.grading.vision_client._BASE_RETRY_DELAY", 0.01)
     monkeypatch.setattr("app.grading.vision_client._MAX_RETRIES_PER_MODEL", 2)
 
-    import openai
     mock_client = MagicMock()
     mock_response = MagicMock()
-    mock_choice = MagicMock()
-    mock_choice.message.content = '```json\n{"roll_number": "100"}\n```'
-    mock_response.choices = [mock_choice]
+    mock_response.text = '```json\n{"roll_number": "100"}\n```'
 
-    error_429 = openai.RateLimitError(
-        message="Rate limit exceeded",
-        response=MagicMock(status_code=429, headers={}),
-        body=None,
-    )
-    mock_client.chat.completions.create.side_effect = [error_429, mock_response]
+    from google.genai import errors as genai_errors
+    error_429 = genai_errors.APIError(code=429, response=MagicMock())
+    mock_client.models.generate_content.side_effect = [error_429, mock_response]
 
     client = VisionClient.__new__(VisionClient)
     client._clients = [mock_client]
@@ -92,6 +86,6 @@ async def test_vision_client_retry_on_429(monkeypatch):
         [b"fake-image"], mime_type="image/png", prompt="extract"
     )
     assert parsed == {"roll_number": "100"}
-    assert model == "openrouter:vision-model-1"
-    assert mock_client.chat.completions.create.call_count == 2
+    assert model == "gemini:vision-model-1"
+    assert mock_client.models.generate_content.call_count == 2
 

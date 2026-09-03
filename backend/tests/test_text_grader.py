@@ -162,3 +162,38 @@ async def test_unexpected_exception_falls_back_to_similarity():
     assert len(grades) == 1
     assert grades[0].graded_by == "cosine_similarity"
     assert any("unavailable" in w for w in warnings)
+
+
+async def test_all_written_answers_are_graded_in_one_llm_call():
+    second_answer = TextAnswer(
+        question_id="q2",
+        reference_answer="Water freezes at zero degrees Celsius.",
+        rubric=[RubricCriterion(description="States zero degrees Celsius", max_points=2.0)],
+    )
+    responses = [
+        TextResponse(question_id="q1", answer_text="Plants use sunlight to make food."),
+        TextResponse(question_id="q2", answer_text="Water freezes at 0 C."),
+    ]
+    client = _FakeClient(
+        {
+            "questions": [
+                {
+                    "question_id": "q1",
+                    "criteria": [{"index": 0, "awarded_points": 1.0}],
+                    "feedback": "Good.",
+                },
+                {
+                    "question_id": "q2",
+                    "criteria": [{"index": 0, "awarded_points": 2.0}],
+                    "feedback": "Correct.",
+                },
+            ]
+        }
+    )
+
+    grades, warnings = await grade_text_responses(responses, [_answer(), second_answer], client)
+
+    assert client.calls == 1
+    assert [grade.points_awarded for grade in grades] == [1.0, 2.0]
+    assert all(grade.graded_by == "rubric:test-model" for grade in grades)
+    assert warnings == []

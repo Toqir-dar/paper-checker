@@ -16,15 +16,10 @@ class Settings(BaseSettings):
         validation_alias="GROQ_MODELS",
     )
 
+    gemini_api_keys_csv: str = Field(default="", validation_alias="GEMINI_API_KEYS")
     gemini_models_csv: str = Field(
         default="gemini-2.5-flash,gemini-2.0-flash,gemini-1.5-flash,gemini-2.0-flash-lite",
         validation_alias="GEMINI_MODELS",
-    )
-
-    openrouter_api_keys_csv: str = Field(default="", validation_alias="OPENROUTER_API_KEYS")
-    openrouter_vision_models_csv: str = Field(
-        default="minimax/minimax-m3:free,google/gemma-4-31b-it:free,google/gemma-4-26b-a4b-it:free",
-        validation_alias="OPENROUTER_VISION_MODELS",
     )
 
     cors_origins_csv: str = Field(
@@ -58,14 +53,6 @@ class Settings(BaseSettings):
     @property
     def gemini_models(self) -> list[str]:
         return [model.strip() for model in self.gemini_models_csv.split(",") if model.strip()]
-
-    @property
-    def openrouter_api_keys(self) -> list[str]:
-        return [key.strip() for key in self.openrouter_api_keys_csv.split(",") if key.strip()]
-
-    @property
-    def openrouter_vision_models(self) -> list[str]:
-        return [model.strip() for model in self.openrouter_vision_models_csv.split(",") if model.strip()]
 
     @property
     def cors_origin_list(self) -> list[str]:

@@ -1,6 +1,6 @@
 import logging
 
-from app.grading.llm_client import AllProvidersExhaustedError, LLMClient
+from app.grading.llm_client import LLMClient
 from app.grading.similarity import cosine_similarity
 from app.models.answer_key import RubricCriterion, TextAnswer
 from app.models.grade_result import CriterionGrade, QuestionGrade
@@ -30,19 +30,29 @@ _FALLBACK_FEEDBACK = (
 
 
 def _build_rubric_prompt(
-    reference_answer: str, student_answer: str, rubric: list[RubricCriterion]
+    questions: list[tuple[TextAnswer, TextResponse]],
 ) -> str:
-    rubric_lines = "\n".join(
-        f"{i}. {c.description} (max {c.max_points} pts)" for i, c in enumerate(rubric)
-    )
+    question_blocks = []
+    for answer, response in questions:
+        rubric_lines = "\n".join(
+            f"{i}. {criterion.description} (max {criterion.max_points} pts)"
+            for i, criterion in enumerate(answer.rubric)
+        )
+        question_blocks.append(
+            f"Question ID: {answer.question_id}\n"
+            f"Reference answer:\n{answer.reference_answer}\n\n"
+            f"Rubric — score each criterion by its index:\n{rubric_lines}\n\n"
+            f"Student answer:\n{response.answer_text}"
+        )
+
     return (
-        f"Reference answer:\n{reference_answer}\n\n"
-        f"Rubric — score each criterion by its index:\n{rubric_lines}\n\n"
-        f"Student answer:\n{student_answer}\n\n"
-        "For every criterion above, award points between 0 and its max. "
-        "Respond as JSON only, no prose:\n"
-        '{"criteria": [{"index": 0, "awarded_points": <number>}, ...], '
-        '"feedback": "<one concise sentence on what was right and what was missing>"}'
+        "Grade every question below independently. For every rubric criterion, award "
+        "between 0 and its maximum points. Judge only what the student wrote.\n\n"
+        + "\n\n---\n\n".join(question_blocks)
+        + "\n\nRespond as JSON only, no prose:\n"
+        '{"questions": [{"question_id": "q1", "criteria": '
+        '[{"index": 0, "awarded_points": <number>}], '
+        '"feedback": "<one concise sentence>"}]}'
     )
 
 
@@ -121,7 +131,58 @@ async def grade_text_responses(
     key_by_question = {answer.question_id: answer for answer in answer_key}
     grades: list[QuestionGrade] = []
     warnings: list[str] = []
-    llm_available = True
+    answers_by_question = {answer.question_id: answer for answer in answer_key}
+    valid_responses = [
+        (answers_by_question[response.question_id], response)
+        for response in responses
+        if response.question_id in answers_by_question
+    ]
+    similarities = {
+        response.question_id: await cosine_similarity(answer.reference_answer, response.answer_text)
+        for answer, response in valid_responses
+    }
+    rubric_questions = [(answer, response) for answer, response in valid_responses if answer.rubric]
+    rubric_scores: dict[str, tuple[list[CriterionGrade], float, str, str]] = {}
+    llm_warning: str | None = None
+
+    if rubric_questions:
+        prompt = _build_rubric_prompt(rubric_questions)
+        try:
+            parsed, model = await client.generate_json(
+                prompt, system_instruction=_RUBRIC_SYSTEM_INSTRUCTION
+            )
+        except Exception as exc:
+            logger.warning("LLM rubric grader failed, falling back to similarity: %s", exc)
+            llm_warning = (
+                "LLM rubric grader was unavailable — written answers were scored by "
+                "semantic similarity only. Review these scores carefully."
+            )
+        else:
+            raw_questions = parsed.get("questions")
+            if not isinstance(raw_questions, list) and len(rubric_questions) == 1:
+                raw_questions = [{"question_id": rubric_questions[0][0].question_id, **parsed}]
+
+            answers_by_id = {answer.question_id: answer for answer, _ in rubric_questions}
+            if isinstance(raw_questions, list):
+                for item in raw_questions:
+                    if not isinstance(item, dict):
+                        continue
+                    question_id = item.get("question_id")
+                    answer = answers_by_id.get(question_id)
+                    if answer is None:
+                        continue
+                    scored = _score_from_criteria(answer.rubric, item)
+                    if scored is not None:
+                        criteria, points_awarded = scored
+                        rubric_scores[question_id] = (
+                            criteria,
+                            points_awarded,
+                            str(item.get("feedback", "")).strip(),
+                            model,
+                        )
+
+        if llm_warning:
+            warnings.append(llm_warning)
 
     for response in responses:
         answer = key_by_question.get(response.question_id)
@@ -129,54 +190,23 @@ async def grade_text_responses(
             continue
 
         points_possible = round(sum(c.max_points for c in answer.rubric), 2)
-        # Local, cheap, always available — used for the fallback score and the cross-check.
-        similarity = await cosine_similarity(answer.reference_answer, response.answer_text)
+        similarity = similarities[response.question_id]
 
         criteria: list[CriterionGrade] = []
-        feedback = ""
-        graded_by = ""
-        points_awarded: float | None = None
-
-        if llm_available and answer.rubric:
-            prompt = _build_rubric_prompt(answer.reference_answer, response.answer_text, answer.rubric)
-            try:
-                parsed, model = await client.generate_json(
-                    prompt, system_instruction=_RUBRIC_SYSTEM_INSTRUCTION
+        rubric_score = rubric_scores.get(response.question_id)
+        if rubric_score is not None:
+            criteria, points_awarded, feedback, model = rubric_score
+            graded_by = f"rubric:{model}"
+            if points_possible > 0:
+                warning = _disagreement_warning(
+                    response.question_id, points_awarded / points_possible, similarity
                 )
-            except AllProvidersExhaustedError:
-                # Every provider/key/model is exhausted. Stop trying for the rest of this
-                # paper and note it once, rather than hammering dead providers per answer.
-                llm_available = False
-                warnings.append(
-                    "LLM rubric grader was unavailable — written answers were scored by "
-                    "semantic similarity only. Review these scores carefully."
-                )
-            except Exception as exc:
-                llm_available = False
-                logger.warning("LLM rubric grader failed with unexpected error, falling back: %s", exc)
-                warnings.append(
-                    "LLM rubric grader was unavailable — written answers were scored by "
-                    "semantic similarity only. Review these scores carefully."
-                )
-            else:
-                scored = _score_from_criteria(answer.rubric, parsed)
-                if scored is not None:
-                    criteria, points_awarded = scored
-                    feedback = str(parsed.get("feedback", "")).strip()
-                    graded_by = f"rubric:{model}"
-                    if points_possible > 0:
-                        warning = _disagreement_warning(
-                            response.question_id, points_awarded / points_possible, similarity
-                        )
-                        if warning:
-                            warnings.append(warning)
-
-        if points_awarded is None:
-            # Fallback: LLM exhausted, no rubric on this question, or an unusable payload.
+                if warning:
+                    warnings.append(warning)
+        else:
             points_awarded = round(similarity * points_possible, 2)
             graded_by = "cosine_similarity"
             feedback = _FALLBACK_FEEDBACK
-            criteria = []
 
         grades.append(
             QuestionGrade(
