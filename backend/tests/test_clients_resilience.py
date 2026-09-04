@@ -3,6 +3,7 @@ import pytest
 
 from app.grading.llm_client import LLMClient, _GroqChain, _GeminiChain, AllProvidersExhaustedError
 from app.grading.vision_client import VisionClient, AllVisionProvidersExhaustedError
+from app.core.api_budget import ApiBudgetExceededError, ApiRequestBudget
 
 
 @pytest.mark.asyncio
@@ -88,4 +89,14 @@ async def test_vision_client_retry_on_429(monkeypatch):
     assert parsed == {"roll_number": "100"}
     assert model == "gemini:vision-model-1"
     assert mock_client.models.generate_content.call_count == 2
+
+
+@pytest.mark.asyncio
+async def test_api_budget_rejects_requests_after_daily_limit():
+    budget = ApiRequestBudget(requests_per_minute=15, requests_per_day=1)
+
+    await budget.acquire()
+
+    with pytest.raises(ApiBudgetExceededError):
+        await budget.acquire()
 

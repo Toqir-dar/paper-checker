@@ -8,6 +8,7 @@ from google import genai
 from google.genai import errors as genai_errors
 
 from app.config import settings
+from app.core.api_budget import request_budget
 from app.grading.json_utils import safe_parse_json
 
 logger = logging.getLogger(__name__)
@@ -53,6 +54,7 @@ class _GroqChain:
         for client, model in self._combinations():
             for attempt in range(_MAX_RETRIES_PER_MODEL + 1):
                 try:
+                    await request_budget.acquire()
                     response = await asyncio.to_thread(
                         client.chat.completions.create,
                         model=model,
@@ -133,6 +135,7 @@ class _GeminiChain:
         for client, model in self._combinations():
             for attempt in range(_MAX_RETRIES_PER_MODEL + 1):
                 try:
+                    await request_budget.acquire()
                     response = await asyncio.to_thread(
                         client.models.generate_content,
                         model=model,

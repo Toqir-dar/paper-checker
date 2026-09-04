@@ -37,6 +37,8 @@ class Settings(BaseSettings):
     )
 
     api_key: str = Field(default="", validation_alias="API_KEY")
+    model_requests_per_minute: int = Field(default=15, validation_alias="MODEL_REQUESTS_PER_MINUTE")
+    model_requests_per_day: int = Field(default=500, validation_alias="MODEL_REQUESTS_PER_DAY")
 
     @property
     def groq_api_keys(self) -> list[str]:
