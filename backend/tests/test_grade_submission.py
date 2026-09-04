@@ -2,8 +2,8 @@ import pytest
 
 from app import grading
 from app.grading import text_grader
-from app.models.answer_key import AnswerKey, McqAnswer, RubricCriterion, TextAnswer
-from app.models.submission import McqResponse, Submission, TextResponse
+from app.models.answer_key import AnswerKey, DiagramAnswer, McqAnswer, RubricCriterion, TextAnswer
+from app.models.submission import DiagramResponse, McqResponse, Submission, TextResponse
 
 
 class _FakeClient:
@@ -54,3 +54,49 @@ async def test_grade_submission_merges_mcq_and_text_totals_and_warnings():
 
     # 3/3 = 100% vs similarity 60% → gap 0.4, under threshold; labels line up → no warnings.
     assert result.warnings == []
+
+
+async def test_grade_submission_grades_diagram_from_the_recorded_page(monkeypatch):
+    class _FakeVisionClient:
+        async def generate_json_from_images(self, images, *, mime_type, prompt, system_instruction=None):
+            assert images == [b"page-2"]
+            assert mime_type == "image/png"
+            return {
+                "criteria": [
+                    {"index": 0, "awarded_points": 5},
+                    {"index": 1, "awarded_points": 1},
+                ],
+                "feedback": "The structure is correct but one label is missing.",
+            }, "vision-test"
+
+    monkeypatch.setattr(grading, "get_vision_client", lambda: _FakeVisionClient())
+    answer_key = AnswerKey(
+        id="k1",
+        title="Diagram quiz",
+        diagram_answers=[
+            DiagramAnswer(
+                question_id="q1",
+                question_text="Draw a cell.",
+                reference_description="A labeled cell",
+                rubric=[
+                    RubricCriterion(description="Correct structure", max_points=3),
+                    RubricCriterion(description="Correct labels", max_points=2),
+                ],
+            )
+        ],
+    )
+    submission = Submission(
+        id="s1",
+        answer_key_id="k1",
+        student_name="Ada",
+        diagram_responses=[DiagramResponse(question_id="q1", page_number=2)],
+        source_images=["cGFnZS0x", "cGFnZS0y"],
+    )
+
+    result = await grading.grade_submission(submission, answer_key)
+
+    assert result.total_points_possible == 5.0
+    assert result.total_points_awarded == 4.0
+    assert result.question_grades[0].graded_by == "diagram:vision-test"
+    assert result.question_grades[0].criteria[0].awarded_points == 3.0
+    assert result.question_grades[0].criteria[1].awarded_points == 1.0

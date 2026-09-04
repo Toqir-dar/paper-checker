@@ -19,6 +19,12 @@ class TextResponse(BaseModel):
     detected_label: str = ""
 
 
+class DiagramResponse(BaseModel):
+    question_id: str
+    page_number: int | None = None
+    detected_label: str = ""
+
+
 class Submission(BaseModel):
     id: str | None = Field(default=None, validation_alias="_id", serialization_alias="id")
     answer_key_id: str
@@ -31,5 +37,8 @@ class Submission(BaseModel):
     batch_id: str | None = None
     mcq_responses: list[McqResponse] = Field(default_factory=list)
     text_responses: list[TextResponse] = Field(default_factory=list)
+    diagram_responses: list[DiagramResponse] = Field(default_factory=list)
+    source_images: list[str] = Field(default_factory=list)
+    source_image_mime_type: str = "image/png"
 
     model_config = {"populate_by_name": True}

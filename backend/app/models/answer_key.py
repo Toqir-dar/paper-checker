@@ -20,6 +20,13 @@ class TextAnswer(BaseModel):
     rubric: list[RubricCriterion]
 
 
+class DiagramAnswer(BaseModel):
+    question_id: str
+    question_text: str = ""
+    reference_description: str
+    rubric: list[RubricCriterion]
+
+
 class AnswerKey(BaseModel):
     # Accepts "_id" on the way in (raw MongoDB documents), but always
     # serializes as "id" on the way out — API clients shouldn't have to know
@@ -28,5 +35,6 @@ class AnswerKey(BaseModel):
     title: str
     mcq_answers: list[McqAnswer] = Field(default_factory=list)
     text_answers: list[TextAnswer] = Field(default_factory=list)
+    diagram_answers: list[DiagramAnswer] = Field(default_factory=list)
 
     model_config = {"populate_by_name": True}

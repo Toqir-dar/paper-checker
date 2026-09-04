@@ -71,6 +71,9 @@ async def upload_submission(
         batch_id=batch_id,
         mcq_responses=extracted.get("mcq_responses", []),
         text_responses=extracted.get("text_responses", []),
+        diagram_responses=extracted.get("diagram_responses", []),
+        source_images=extracted.get("source_images", []),
+        source_image_mime_type=extracted.get("source_image_mime_type", "image/png"),
     )
     return await SubmissionRepository(db).create(submission)
 

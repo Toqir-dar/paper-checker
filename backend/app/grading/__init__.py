@@ -3,6 +3,8 @@ import re
 from app.grading.llm_client import get_llm_client
 from app.grading.mcq_grader import grade_mcq_responses
 from app.grading.text_grader import grade_text_responses
+from app.grading.diagram_grader import grade_diagram_responses
+from app.grading.vision_client import get_vision_client
 from app.models.answer_key import AnswerKey
 from app.models.grade_result import GradeResult, QuestionGrade
 from app.models.submission import Submission
@@ -31,7 +33,7 @@ def _detect_numbering_warnings(question_grades: list[QuestionGrade], answer_key:
                 f"answer was matched to {grade.question_id} by content — verify before finalizing."
             )
 
-    all_ids = [a.question_id for a in answer_key.mcq_answers] + [a.question_id for a in answer_key.text_answers]
+    all_ids = [a.question_id for a in answer_key.mcq_answers] + [a.question_id for a in answer_key.text_answers] + [a.question_id for a in answer_key.diagram_answers]
     numbered_ids = sorted(
         (qid for qid in all_ids if _question_number(qid) is not None),
         key=lambda qid: _question_number(qid) or 0,
@@ -66,12 +68,19 @@ async def grade_submission(submission: Submission, answer_key: AnswerKey) -> Gra
             submission.text_responses, answer_key.text_answers, client
         )
 
-    question_grades = [*mcq_grades, *text_grades]
+    diagram_grades: list[QuestionGrade] = []
+    diagram_warnings: list[str] = []
+    if submission.diagram_responses:
+        diagram_grades, diagram_warnings = await grade_diagram_responses(
+            submission, answer_key.diagram_answers, get_vision_client()
+        )
+
+    question_grades = [*mcq_grades, *text_grades, *diagram_grades]
     return GradeResult(
         submission_id=submission.id,
         answer_key_id=answer_key.id,
         question_grades=question_grades,
         total_points_awarded=round(sum(g.points_awarded for g in question_grades), 2),
         total_points_possible=round(sum(g.points_possible for g in question_grades), 2),
-        warnings=_detect_numbering_warnings(question_grades, answer_key) + text_warnings,
+        warnings=_detect_numbering_warnings(question_grades, answer_key) + text_warnings + diagram_warnings,
     )

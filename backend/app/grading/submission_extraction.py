@@ -1,3 +1,4 @@
+import base64
 import logging
 from typing import Any
 
@@ -22,10 +23,14 @@ def _build_prompt(answer_key: AnswerKey) -> str:
     text_questions = [
         {"question_id": a.question_id, "question_text": a.question_text} for a in answer_key.text_answers
     ]
+    diagram_questions = [
+        {"question_id": a.question_id, "question_text": a.question_text} for a in answer_key.diagram_answers
+    ]
 
     return f"""This is a scanned student answer sheet for an exam with these questions:
 - Multiple-choice questions: {mcq_questions}
 - Free-text questions: {text_questions}
+- Diagram questions: {diagram_questions}
 
 First, find the student's roll number / registration number / roll no. — it is
 usually printed or handwritten near the top of the first page, often next to a
@@ -46,6 +51,9 @@ selected (look for circled, checked, underlined, or otherwise marked options).
 For each free-text question, transcribe the student's full written answer as
 accurately as possible, including handwriting.
 
+For each diagram question, locate the student's drawing and return the 1-based
+page_number containing it. Do not describe or grade the drawing here.
+
 For every response, also report detected_label: the literal number or marker
 written on the page next to that answer (e.g. "10", "9", "Q9"), exactly as it
 appears — even if it looks like it was overwritten or corrected, and even if it
@@ -63,6 +71,9 @@ Respond as JSON only, in exactly this shape:
   ],
   "text_responses": [
     {{"question_id": "q2", "answer_text": "...", "detected_label": "2"}}
+    ],
+    "diagram_responses": [
+        {{"question_id": "q3", "page_number": 2, "detected_label": "3"}}
   ]
 }}
 
@@ -88,4 +99,7 @@ async def extract_submission_responses(
     )
     logger.info("Submission responses extracted by %s", model)
 
+    # Grading happens in a later request, so retain the visual pages for diagram grading.
+    result["source_images"] = [base64.b64encode(image).decode("ascii") for image in images]
+    result["source_image_mime_type"] = mime_type
     return result

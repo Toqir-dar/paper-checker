@@ -30,13 +30,17 @@ and break it down into 2-4 rubric criteria that a grader could check
 independently, each worth some number of points (criteria points should sum to
 a reasonable total per question, e.g. 4-10 points).
 
+For every diagram, drawing, or labeling question, record its question_text,
+describe the expected result in reference_description, and create 2-4 rubric
+criteria for visibly checkable structure, labels, or relationships.
+
 question_text matters beyond record-keeping: it is later shown to a separate
 model matching a student's answer sheet to these questions, so it needs enough
 of the actual question wording to distinguish this question from the others —
 not just a label like "Question 9".
 
 Assign question IDs sequentially as q1, q2, q3... in the order questions appear,
-across both MCQ and free-text questions combined.
+across MCQ, free-text, and diagram questions combined.
 
 Respond as JSON only, in exactly this shape:
 {
@@ -54,6 +58,14 @@ Respond as JSON only, in exactly this shape:
         {"description": "...", "max_points": 3}
       ]
     }
+    ],
+    "diagram_answers": [
+        {
+            "question_id": "q3",
+            "question_text": "Draw and label ...",
+            "reference_description": "...",
+            "rubric": [{"description": "...", "max_points": 3}]
+        }
   ]
 }
 
