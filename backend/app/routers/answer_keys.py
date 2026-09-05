@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.core.security import require_api_key
@@ -12,6 +12,7 @@ from app.repositories.answer_key_repo import AnswerKeyRepository
 from app.repositories.batch_repo import BatchRepository
 from app.repositories.result_repo import ResultRepository
 from app.repositories.submission_repo import SubmissionRepository
+from app.repositories.subject_repo import SubjectRepository
 
 router = APIRouter(
     prefix="/answer-keys",
@@ -44,12 +45,16 @@ async def create_answer_key(
     answer_key: AnswerKey,
     db: AsyncIOMotorDatabase = Depends(get_database),
 ) -> AnswerKey:
+    answer_key.subject_id = answer_key.subject_id or None
+    if answer_key.subject_id and await SubjectRepository(db).get(answer_key.subject_id) is None:
+        raise HTTPException(status_code=400, detail="Subject not found")
     return await AnswerKeyRepository(db).create(answer_key)
 
 
 @router.post("/upload", response_model=AnswerKey, dependencies=[Depends(require_api_key)])
 async def upload_answer_key(
     file: UploadFile = File(...),
+    subject_id: str | None = Form(None),
     db: AsyncIOMotorDatabase = Depends(get_database),
 ) -> AnswerKey:
     """Upload a scanned/PDF/Word answer key or textbook page. PDFs and images go
@@ -59,6 +64,8 @@ async def upload_answer_key(
     is_supported = content_type in (_DOCX_CONTENT_TYPE, "application/pdf") or content_type.startswith("image/")
     if not is_supported:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=_SUPPORTED_UPLOAD_TYPES_HINT)
+    if subject_id and await SubjectRepository(db).get(subject_id) is None:
+        raise HTTPException(status_code=400, detail="Subject not found")
 
     file_bytes = await file.read()
 
@@ -84,6 +91,7 @@ async def upload_answer_key(
             detail="Text extraction is currently rate-limited across all configured providers. Try again shortly.",
         ) from exc
 
+    answer_key.subject_id = subject_id or None
     return await AnswerKeyRepository(db).create(answer_key)
 
 

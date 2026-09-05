@@ -25,6 +25,20 @@
   }
 </div>
 
+<div class="field mt-6" style="max-width: 420px;">
+  <label class="label" for="subject_id">Subject</label>
+  <select id="subject_id" class="input" [value]="subjectId()" (change)="subjectId.set($any($event.target).value)">
+    <option value="">No subject</option>
+    @for (subject of subjects(); track subject.id) {
+      <option [value]="subject.id">{{ subject.name }}</option>
+    }
+  </select>
+  <div class="row gap-3" style="margin-top: var(--space-2);">
+    <input class="input" placeholder="New subject, e.g. Biology" [value]="newSubjectName()" (input)="newSubjectName.set($any($event.target).value)" />
+    <button type="button" class="btn btn-secondary btn-sm" (click)="createSubject()">Add subject</button>
+  </div>
+</div>
+
 <div class="actions mt-6">
   <button class="btn btn-primary" [disabled]="uploading() || !selectedFile()" (click)="submit()">
     {{ uploading() ? 'Reading the page…' : 'Read this page' }}

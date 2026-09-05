@@ -29,7 +29,7 @@ async def _claim_legacy_data(db: AsyncIOMotorDatabase, user_id: str, user: dict)
     if first_user is None or first_user["_id"] != user["_id"]:
         return
     legacy_filter = {"$or": [{"user_id": {"$exists": False}}, {"user_id": None}]}
-    for collection in ("answer_keys", "submissions", "batches", "grade_results"):
+    for collection in ("answer_keys", "submissions", "batches", "grade_results", "subjects"):
         await db[collection].update_many(legacy_filter, {"$set": {"user_id": user_id}})
 
 

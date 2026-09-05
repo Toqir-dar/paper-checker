@@ -25,9 +25,12 @@ export class AnswerKeyService {
     return this.http.put<AnswerKey>(`${this.baseUrl}/${id}`, draft);
   }
 
-  uploadFile(file: File): Observable<AnswerKey> {
+  uploadFile(file: File, subjectId?: string): Observable<AnswerKey> {
     const formData = new FormData();
     formData.append('file', file);
+    if (subjectId) {
+      formData.append('subject_id', subjectId);
+    }
     return this.http.post<AnswerKey>(`${this.baseUrl}/upload`, formData);
   }
 

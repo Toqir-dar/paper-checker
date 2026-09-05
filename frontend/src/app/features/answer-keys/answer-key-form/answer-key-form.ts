@@ -3,6 +3,8 @@ import { FormArray, FormGroup, NonNullableFormBuilder, ReactiveFormsModule, Vali
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AnswerKeyDraft } from '../../../core/models/answer-key.model';
 import { AnswerKeyService } from '../../../core/services/answer-key.service';
+import { Subject } from '../../../core/models/subject.model';
+import { SubjectService } from '../../../core/services/subject.service';
 
 @Component({
   selector: 'app-answer-key-form',
@@ -13,6 +15,7 @@ import { AnswerKeyService } from '../../../core/services/answer-key.service';
 export class AnswerKeyForm {
   private readonly fb: NonNullableFormBuilder = inject(NonNullableFormBuilder);
   private readonly answerKeyService = inject(AnswerKeyService);
+  private readonly subjectService = inject(SubjectService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
 
@@ -23,21 +26,26 @@ export class AnswerKeyForm {
   protected readonly submitting = signal(false);
   protected readonly loading = signal(this.isEditMode);
   protected readonly errorMessage = signal<string | null>(null);
+  protected readonly subjects = signal<Subject[]>([]);
+  protected readonly newSubjectName = signal('');
 
   protected readonly bulkMcqCount = signal(5);
   protected readonly bulkMcqPoints = signal(1);
 
   protected readonly form = this.fb.group({
     title: this.fb.control('', Validators.required),
+    subject_id: this.fb.control(''),
     mcq_answers: this.fb.array<FormGroup>([]),
     text_answers: this.fb.array<FormGroup>([]),
   });
 
   constructor() {
+    this.subjectService.list().subscribe((subjects) => this.subjects.set(subjects));
     if (this.answerKeyId) {
       this.answerKeyService.get(this.answerKeyId).subscribe({
         next: (key) => {
           this.form.controls.title.setValue(key.title);
+          this.form.controls.subject_id.setValue(key.subject_id ?? '');
           for (const mcq of key.mcq_answers) {
             this.mcqAnswers.push(
               this.fb.group({
@@ -74,6 +82,19 @@ export class AnswerKeyForm {
         },
       });
     }
+  }
+
+  protected createSubject(): void {
+    const name = this.newSubjectName().trim();
+    if (!name) return;
+    this.subjectService.create(name).subscribe({
+      next: (subject) => {
+        this.subjects.update((subjects) => subjects.some((item) => item.id === subject.id) ? subjects : [...subjects, subject].sort((a, b) => a.name.localeCompare(b.name)));
+        this.form.controls.subject_id.setValue(subject.id);
+        this.newSubjectName.set('');
+      },
+      error: () => this.errorMessage.set('Could not create the subject.'),
+    });
   }
 
   protected get mcqAnswers(): FormArray<FormGroup> {

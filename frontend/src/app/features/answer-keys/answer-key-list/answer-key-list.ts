@@ -2,6 +2,8 @@ import { Component, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { AnswerKey } from '../../../core/models/answer-key.model';
 import { AnswerKeyService } from '../../../core/services/answer-key.service';
+import { Subject } from '../../../core/models/subject.model';
+import { SubjectService } from '../../../core/services/subject.service';
 
 @Component({
   selector: 'app-answer-key-list',
@@ -11,13 +13,20 @@ import { AnswerKeyService } from '../../../core/services/answer-key.service';
 })
 export class AnswerKeyList {
   private readonly answerKeyService = inject(AnswerKeyService);
+  private readonly subjectService = inject(SubjectService);
 
   protected readonly answerKeys = signal<AnswerKey[]>([]);
   protected readonly deletingId = signal<string | null>(null);
   protected readonly errorMessage = signal<string | null>(null);
+  protected readonly subjects = signal<Subject[]>([]);
 
   constructor() {
     this.answerKeyService.list().subscribe((keys) => this.answerKeys.set(keys));
+    this.subjectService.list().subscribe((subjects) => this.subjects.set(subjects));
+  }
+
+  protected subjectName(subjectId: string | null): string | null {
+    return this.subjects().find((subject) => subject.id === subjectId)?.name ?? null;
   }
 
   protected delete(key: AnswerKey): void {

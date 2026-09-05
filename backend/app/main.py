@@ -7,7 +7,7 @@ from app.config import settings
 from app.core.logging import setup_logging
 from app.core.security import get_user_id_from_token, reset_current_user_id, set_current_user_id
 from app.db import close_mongo_connection, connect_to_mongo
-from app.routers import answer_keys, auth, batches, grading, reports, submissions
+from app.routers import answer_keys, auth, batches, grading, reports, submissions, subjects
 
 
 @asynccontextmanager
@@ -46,6 +46,7 @@ app.include_router(batches.router)
 app.include_router(submissions.router)
 app.include_router(grading.router)
 app.include_router(reports.router)
+app.include_router(subjects.router)
 
 
 @app.get("/health")

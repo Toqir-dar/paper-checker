@@ -31,6 +31,9 @@
           [routerLink]="['/answer-keys', key.id, 'submissions']"
         >
           <span class="ruled__title">{{ key.title }}</span>
+          @if (subjectName(key.subject_id); as subject) {
+            <span class="label" style="display: block; margin-top: 5px">{{ subject }}</span>
+          }
           <span class="mono muted" style="display: block; font-size: 11px; margin-top: 5px">
             {{ key.mcq_answers.length }} multiple choice · {{ key.text_answers.length }} written
           </span>

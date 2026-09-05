@@ -26,6 +26,7 @@ class AnswerKey(BaseModel):
     # Mongo's field naming convention.
     id: str | None = Field(default=None, validation_alias="_id", serialization_alias="id")
     title: str
+    subject_id: str | None = None
     mcq_answers: list[McqAnswer] = Field(default_factory=list)
     text_answers: list[TextAnswer] = Field(default_factory=list)
 

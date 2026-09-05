@@ -1,6 +1,8 @@
 import { Component, inject, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { AnswerKeyService } from '../../../core/services/answer-key.service';
+import { Subject } from '../../../core/models/subject.model';
+import { SubjectService } from '../../../core/services/subject.service';
 
 @Component({
   selector: 'app-answer-key-upload',
@@ -11,10 +13,18 @@ import { AnswerKeyService } from '../../../core/services/answer-key.service';
 export class AnswerKeyUpload {
   private readonly answerKeyService = inject(AnswerKeyService);
   private readonly router = inject(Router);
+  private readonly subjectService = inject(SubjectService);
 
   protected readonly selectedFile = signal<File | null>(null);
   protected readonly uploading = signal(false);
   protected readonly errorMessage = signal<string | null>(null);
+  protected readonly subjects = signal<Subject[]>([]);
+  protected readonly subjectId = signal('');
+  protected readonly newSubjectName = signal('');
+
+  constructor() {
+    this.subjectService.list().subscribe((subjects) => this.subjects.set(subjects));
+  }
 
   protected onFileSelected(event: Event): void {
     const input = event.target as HTMLInputElement;
@@ -32,7 +42,7 @@ export class AnswerKeyUpload {
     this.uploading.set(true);
     this.errorMessage.set(null);
 
-    this.answerKeyService.uploadFile(file).subscribe({
+    this.answerKeyService.uploadFile(file, this.subjectId()).subscribe({
       // Land on the review/edit form, not submissions — the vision model's
       // extracted questions and points need a human check before they're
       // used to grade anything.
@@ -45,6 +55,19 @@ export class AnswerKeyUpload {
             : 'Failed to process the file. Make sure it clearly shows the questions and answers, then try again.',
         );
       },
+    });
+  }
+
+  protected createSubject(): void {
+    const name = this.newSubjectName().trim();
+    if (!name) return;
+    this.subjectService.create(name).subscribe({
+      next: (subject) => {
+        this.subjects.update((subjects) => subjects.some((item) => item.id === subject.id) ? subjects : [...subjects, subject].sort((a, b) => a.name.localeCompare(b.name)));
+        this.subjectId.set(subject.id);
+        this.newSubjectName.set('');
+      },
+      error: () => this.errorMessage.set('Could not create the subject.'),
     });
   }
 }

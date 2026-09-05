@@ -18,6 +18,7 @@ export interface TextAnswer {
 export interface AnswerKey {
   id: string;
   title: string;
+  subject_id: string | null;
   mcq_answers: McqAnswer[];
   text_answers: TextAnswer[];
 }

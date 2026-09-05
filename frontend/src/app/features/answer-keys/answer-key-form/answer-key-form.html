@@ -47,6 +47,19 @@
       <div class="form-section__header">
         <strong>Quick add</strong>
       </div>
+      <div class="field">
+        <label class="label" for="subject_id">Subject</label>
+        <select id="subject_id" class="input" formControlName="subject_id">
+          <option value="">No subject</option>
+          @for (subject of subjects(); track subject.id) {
+            <option [value]="subject.id">{{ subject.name }}</option>
+          }
+        </select>
+        <div class="row gap-3" style="margin-top: var(--space-2);">
+          <input class="input" placeholder="New subject, e.g. Biology" [value]="newSubjectName()" (input)="newSubjectName.set($any($event.target).value)" />
+          <button type="button" class="btn btn-secondary btn-sm" (click)="createSubject()">Add subject</button>
+        </div>
+      </div>
       <div class="row gap-3" style="align-items: flex-end;">
         <div class="field" style="max-width: 10rem; margin-bottom: 0;">
           <label class="label">How many questions?</label>
