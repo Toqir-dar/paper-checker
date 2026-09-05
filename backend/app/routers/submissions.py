@@ -13,7 +13,11 @@ from app.repositories.answer_key_repo import AnswerKeyRepository
 from app.repositories.result_repo import ResultRepository
 from app.repositories.submission_repo import SubmissionRepository
 
-router = APIRouter(prefix="/submissions", tags=["submissions"])
+router = APIRouter(
+    prefix="/submissions",
+    tags=["submissions"],
+    dependencies=[Depends(require_api_key)],
+)
 
 _SUPPORTED_UPLOAD_TYPES_HINT = "Unsupported file type — upload a PDF or image."
 

@@ -13,7 +13,11 @@ from app.repositories.batch_repo import BatchRepository
 from app.repositories.result_repo import ResultRepository
 from app.repositories.submission_repo import SubmissionRepository
 
-router = APIRouter(prefix="/answer-keys", tags=["answer-keys"])
+router = APIRouter(
+    prefix="/answer-keys",
+    tags=["answer-keys"],
+    dependencies=[Depends(require_api_key)],
+)
 
 _DOCX_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 

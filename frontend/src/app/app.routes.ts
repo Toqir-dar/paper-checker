@@ -9,19 +9,23 @@ import { SubmissionUpload } from './features/submissions/submission-upload/submi
 import { GradeReport } from './features/reports/grade-report/grade-report';
 import { BatchUpload } from './features/batches/batch-upload/batch-upload';
 import { BatchResults } from './features/batches/batch-results/batch-results';
+import { Auth } from './features/auth/auth';
+import { authGuard } from './core/auth.guard';
 
 export const routes: Routes = [
   { path: '', pathMatch: 'full', redirectTo: 'today' },
-  { path: 'today', component: Dashboard },
-  { path: 'answer-keys', component: AnswerKeyList },
-  { path: 'answer-keys/new', component: AnswerKeyForm },
-  { path: 'answer-keys/upload', component: AnswerKeyUpload },
-  { path: 'answer-keys/:answerKeyId/edit', component: AnswerKeyForm },
-  { path: 'answer-keys/:answerKeyId/submissions', component: SubmissionList },
-  { path: 'answer-keys/:answerKeyId/submissions/new', component: SubmissionForm },
-  { path: 'answer-keys/:answerKeyId/submissions/upload', component: SubmissionUpload },
-  { path: 'answer-keys/:answerKeyId/batches/new', component: BatchUpload },
-  { path: 'batches/:batchId', component: BatchResults },
-  { path: 'submissions/:submissionId/report', component: GradeReport },
+  { path: 'login', component: Auth, data: { mode: 'login' } },
+  { path: 'signup', component: Auth, data: { mode: 'signup' } },
+  { path: 'today', component: Dashboard, canActivate: [authGuard] },
+  { path: 'answer-keys', component: AnswerKeyList, canActivate: [authGuard] },
+  { path: 'answer-keys/new', component: AnswerKeyForm, canActivate: [authGuard] },
+  { path: 'answer-keys/upload', component: AnswerKeyUpload, canActivate: [authGuard] },
+  { path: 'answer-keys/:answerKeyId/edit', component: AnswerKeyForm, canActivate: [authGuard] },
+  { path: 'answer-keys/:answerKeyId/submissions', component: SubmissionList, canActivate: [authGuard] },
+  { path: 'answer-keys/:answerKeyId/submissions/new', component: SubmissionForm, canActivate: [authGuard] },
+  { path: 'answer-keys/:answerKeyId/submissions/upload', component: SubmissionUpload, canActivate: [authGuard] },
+  { path: 'answer-keys/:answerKeyId/batches/new', component: BatchUpload, canActivate: [authGuard] },
+  { path: 'batches/:batchId', component: BatchResults, canActivate: [authGuard] },
+  { path: 'submissions/:submissionId/report', component: GradeReport, canActivate: [authGuard] },
   { path: '**', redirectTo: 'today' },
 ];

@@ -9,7 +9,11 @@ from app.db import get_database
 from app.models.grade_result import GradeResult
 from app.repositories.result_repo import ResultRepository
 
-router = APIRouter(prefix="/reports", tags=["reports"])
+router = APIRouter(
+    prefix="/reports",
+    tags=["reports"],
+    dependencies=[Depends(require_api_key)],
+)
 
 
 class ConfirmPayload(BaseModel):

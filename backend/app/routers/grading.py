@@ -10,7 +10,11 @@ from app.repositories.answer_key_repo import AnswerKeyRepository
 from app.repositories.result_repo import ResultRepository
 from app.repositories.submission_repo import SubmissionRepository
 
-router = APIRouter(prefix="/grading", tags=["grading"])
+router = APIRouter(
+    prefix="/grading",
+    tags=["grading"],
+    dependencies=[Depends(require_api_key)],
+)
 
 
 @router.post(

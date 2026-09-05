@@ -11,7 +11,11 @@ from app.repositories.batch_repo import BatchRepository
 from app.repositories.result_repo import ResultRepository
 from app.repositories.submission_repo import SubmissionRepository
 
-router = APIRouter(prefix="/batches", tags=["batches"])
+router = APIRouter(
+    prefix="/batches",
+    tags=["batches"],
+    dependencies=[Depends(require_api_key)],
+)
 
 
 @router.post("", response_model=Batch, dependencies=[Depends(require_api_key)])
