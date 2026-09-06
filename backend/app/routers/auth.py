@@ -1,11 +1,14 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from pydantic import BaseModel, Field
 
+from app.config import settings
+from app.core.rate_limit import InMemoryRateLimiter, RateLimitExceededError
 from app.core.security import create_access_token, hash_password, verify_password
 from app.db import get_database
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+auth_rate_limiter = InMemoryRateLimiter()
 
 
 class Credentials(BaseModel):
@@ -33,9 +36,35 @@ async def _claim_legacy_data(db: AsyncIOMotorDatabase, user_id: str, user: dict)
         await db[collection].update_many(legacy_filter, {"$set": {"user_id": user_id}})
 
 
+def _client_ip(request: Request) -> str:
+    return request.client.host if request.client else "unknown"
+
+
+async def _check_auth_rate_limit(request: Request, email: str, limit: int, window_seconds: int) -> None:
+    try:
+        await auth_rate_limiter.check(
+            [f"ip:{_client_ip(request)}", f"email:{email}"],
+            limit,
+            window_seconds,
+        )
+    except RateLimitExceededError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many authentication attempts. Try again later.",
+            headers={"Retry-After": str(exc.retry_after)},
+        ) from exc
+
+
 @router.post("/signup", response_model=AuthResponse, status_code=status.HTTP_201_CREATED)
-async def signup(credentials: Credentials, db: AsyncIOMotorDatabase = Depends(get_database)) -> AuthResponse:
+async def signup(
+    credentials: Credentials,
+    request: Request,
+    db: AsyncIOMotorDatabase = Depends(get_database),
+) -> AuthResponse:
     email = _normalise_email(credentials.email)
+    await _check_auth_rate_limit(
+        request, email, settings.auth_signup_limit, settings.auth_signup_window_seconds
+    )
     if "@" not in email:
         raise HTTPException(status_code=400, detail="Enter a valid email address")
     users = db["users"]
@@ -48,8 +77,15 @@ async def signup(credentials: Credentials, db: AsyncIOMotorDatabase = Depends(ge
 
 
 @router.post("/login", response_model=AuthResponse)
-async def login(credentials: Credentials, db: AsyncIOMotorDatabase = Depends(get_database)) -> AuthResponse:
+async def login(
+    credentials: Credentials,
+    request: Request,
+    db: AsyncIOMotorDatabase = Depends(get_database),
+) -> AuthResponse:
     email = _normalise_email(credentials.email)
+    await _check_auth_rate_limit(
+        request, email, settings.auth_login_limit, settings.auth_login_window_seconds
+    )
     user = await db["users"].find_one({"email": email})
     if user is None or not verify_password(credentials.password, user.get("password_hash", "")):
         raise HTTPException(status_code=401, detail="Email or password is incorrect")

@@ -38,6 +38,10 @@ class Settings(BaseSettings):
 
     api_key: str = Field(default="", validation_alias="API_KEY")
     auth_secret: str = Field(default="", validation_alias="AUTH_SECRET")
+    auth_login_limit: int = Field(default=10, validation_alias="AUTH_LOGIN_LIMIT")
+    auth_login_window_seconds: int = Field(default=60, validation_alias="AUTH_LOGIN_WINDOW_SECONDS")
+    auth_signup_limit: int = Field(default=5, validation_alias="AUTH_SIGNUP_LIMIT")
+    auth_signup_window_seconds: int = Field(default=3600, validation_alias="AUTH_SIGNUP_WINDOW_SECONDS")
     model_requests_per_minute: int = Field(default=15, validation_alias="MODEL_REQUESTS_PER_MINUTE")
     model_requests_per_day: int = Field(default=500, validation_alias="MODEL_REQUESTS_PER_DAY")
 
