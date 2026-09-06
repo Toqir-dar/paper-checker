@@ -13,6 +13,7 @@ from app.config import settings
 
 
 _TOKEN_TTL_SECONDS = 60 * 60 * 24 * 7
+_DEVELOPMENT_TOKEN_SECRET = secrets.token_urlsafe(32)
 _current_user_id: ContextVar[str | None] = ContextVar("current_user_id", default=None)
 
 
@@ -68,7 +69,11 @@ def get_user_id_from_token(token: str) -> str | None:
 
 
 def _token_secret() -> str:
-    return settings.auth_secret or settings.api_key or "local-development-auth-secret"
+    if settings.auth_secret:
+        return settings.auth_secret
+    if settings.app_environment.strip().lower() in {"production", "prod"}:
+        raise RuntimeError("AUTH_SECRET must be configured in production")
+    return _DEVELOPMENT_TOKEN_SECRET
 
 
 async def require_api_key(

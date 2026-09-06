@@ -2,7 +2,9 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, s
 from fastapi.responses import StreamingResponse
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
+from app.config import settings
 from app.core.security import require_api_key
+from app.core.upload_security import read_validated_upload
 from app.db import get_database
 from app.grading.submission_extraction import extract_submission_responses
 from app.grading.vision_client import AllVisionProvidersExhaustedError, get_vision_client
@@ -53,7 +55,7 @@ async def upload_submission(
     if answer_key is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Answer key not found")
 
-    file_bytes = await file.read()
+    file_bytes = await read_validated_upload(file, content_type, settings.max_upload_bytes)
 
     try:
         extracted = await extract_submission_responses(

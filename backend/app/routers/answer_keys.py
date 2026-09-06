@@ -1,6 +1,8 @@
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
+from app.config import settings
+from app.core.upload_security import read_validated_upload
 from app.core.security import require_api_key
 from app.db import get_database
 from app.grading.answer_key_extraction import extract_answer_key_from_docx_text, extract_answer_key_from_file
@@ -67,7 +69,7 @@ async def upload_answer_key(
     if subject_id and await SubjectRepository(db).get(subject_id) is None:
         raise HTTPException(status_code=400, detail="Subject not found")
 
-    file_bytes = await file.read()
+    file_bytes = await read_validated_upload(file, content_type, settings.max_upload_bytes)
 
     try:
         if content_type == _DOCX_CONTENT_TYPE:
