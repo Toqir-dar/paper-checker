@@ -13,7 +13,13 @@ interface AuthResponse {
 export class AuthService {
   private readonly http = inject(HttpClient);
   private readonly storageKey = 'markup_access_token';
-  readonly email = signal<string | null>(localStorage.getItem('markup_email'));
+  readonly email = signal<string | null>(sessionStorage.getItem('markup_email'));
+
+  constructor() {
+    // Remove tokens created by the previous persistent-storage implementation.
+    localStorage.removeItem(this.storageKey);
+    localStorage.removeItem('markup_email');
+  }
 
   signup(email: string, password: string) {
     return this.http.post<AuthResponse>(`${environment.apiBaseUrl}/auth/signup`, { email, password }).pipe(
@@ -28,22 +34,22 @@ export class AuthService {
   }
 
   logout(): void {
-    localStorage.removeItem(this.storageKey);
-    localStorage.removeItem('markup_email');
+    sessionStorage.removeItem(this.storageKey);
+    sessionStorage.removeItem('markup_email');
     this.email.set(null);
   }
 
   isAuthenticated(): boolean {
-    return Boolean(localStorage.getItem(this.storageKey));
+    return Boolean(sessionStorage.getItem(this.storageKey));
   }
 
   token(): string | null {
-    return localStorage.getItem(this.storageKey);
+    return sessionStorage.getItem(this.storageKey);
   }
 
   private store(response: AuthResponse): void {
-    localStorage.setItem(this.storageKey, response.access_token);
-    localStorage.setItem('markup_email', response.email);
+    sessionStorage.setItem(this.storageKey, response.access_token);
+    sessionStorage.setItem('markup_email', response.email);
     this.email.set(response.email);
   }
 }
