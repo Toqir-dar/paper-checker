@@ -1,5 +1,9 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "env": {
+    "APP_ENV": "production",
+    "CORS_ORIGINS": "https://paper-checker-rust.vercel.app,https://paper-checker-fvwt.vercel.app"
+  },
   "functions": {
     "app/main.py": {
       "maxDuration": 300

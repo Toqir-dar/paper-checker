@@ -228,6 +228,17 @@ The service uses `/health` as its health check. The Docker image starts Uvicorn 
 
 Build the Angular application from `frontend/`. Update `frontend/src/environments/environment.ts` when the backend deployment URL changes. The frontend production build is configured through `frontend/vercel.json` and `angular.json`.
 
+### Backend on Vercel
+
+If the frontend points to the Vercel API, configure these project environment variables in Vercel before deploying the backend:
+
+- `MONGODB_URL`
+- `MONGODB_DB_NAME`
+- `AUTH_SECRET` — one long random value that remains unchanged between deployments
+- `GROQ_API_KEYS` and `GEMINI_API_KEYS`
+
+The backend `vercel.json` sets `APP_ENV=production` and allows the deployed frontend origins. After changing `AUTH_SECRET`, sign in again so the browser receives a cookie signed with the current secret.
+
 ## Project Layout
 
 ```text
