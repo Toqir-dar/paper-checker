@@ -35,7 +35,6 @@ def _set_session_cookie(response: Response, access_token: str, refresh_token: st
         max_age=60 * 15,
         path="/",
     )
-    return csrf_token
     response.set_cookie(
         key=settings.auth_refresh_cookie_name,
         value=refresh_token,
@@ -54,6 +53,7 @@ def _set_session_cookie(response: Response, access_token: str, refresh_token: st
         max_age=60 * 15,
         path="/",
     )
+    return csrf_token
 
 
 def _normalise_email(email: str) -> str:
