@@ -47,6 +47,7 @@ class AnswerKeyRepository:
 
     async def update(self, answer_key_id: str, answer_key: AnswerKey) -> AnswerKey | None:
         doc = answer_key.model_dump(by_alias=True, exclude={"id"})
+        doc["user_id"] = current_user_id()
         result = await self._collection.replace_one({"_id": ObjectId(answer_key_id), "user_id": current_user_id()}, doc)
         if result.matched_count == 0:
             return None
