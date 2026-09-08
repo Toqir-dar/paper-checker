@@ -23,7 +23,7 @@ class Settings(BaseSettings):
     )
 
     cors_origins_csv: str = Field(
-        default="http://localhost:4200,https://paper-checker-fvwt.vercel.app",
+        default="http://localhost:4200,https://paper-checker-fvwt.vercel.app,https://paper-checker-rust.vercel.app",
         validation_alias="CORS_ORIGINS",
     )
     # Vercel URLs for this project vary in shape: the stable production alias
@@ -39,6 +39,9 @@ class Settings(BaseSettings):
     api_key: str = Field(default="", validation_alias="API_KEY")
     app_environment: str = Field(default="development", validation_alias="APP_ENV")
     auth_secret: str = Field(default="", validation_alias="AUTH_SECRET")
+    auth_cookie_name: str = Field(default="paper_checker_session", validation_alias="AUTH_COOKIE_NAME")
+    auth_csrf_cookie_name: str = Field(default="paper_checker_csrf", validation_alias="AUTH_CSRF_COOKIE_NAME")
+    auth_refresh_cookie_name: str = Field(default="paper_checker_refresh", validation_alias="AUTH_REFRESH_COOKIE_NAME")
     auth_login_limit: int = Field(default=10, validation_alias="AUTH_LOGIN_LIMIT")
     auth_login_window_seconds: int = Field(default=60, validation_alias="AUTH_LOGIN_WINDOW_SECONDS")
     auth_signup_limit: int = Field(default=5, validation_alias="AUTH_SIGNUP_LIMIT")
@@ -67,6 +70,14 @@ class Settings(BaseSettings):
     @property
     def cors_origin_list(self) -> list[str]:
         return [origin.strip() for origin in self.cors_origins_csv.split(",") if origin.strip()]
+
+    @property
+    def auth_cookie_secure(self) -> bool:
+        return self.app_environment.strip().lower() in {"production", "prod"}
+
+    @property
+    def auth_cookie_samesite(self) -> str:
+        return "none" if self.auth_cookie_secure else "lax"
 
 
 @lru_cache

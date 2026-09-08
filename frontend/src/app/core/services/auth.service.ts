@@ -4,20 +4,18 @@ import { tap } from 'rxjs';
 import { environment } from '../../../environments/environment';
 
 interface AuthResponse {
-  access_token: string;
-  token_type: string;
   email: string;
 }
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private readonly http = inject(HttpClient);
-  private readonly storageKey = 'markup_access_token';
+  private readonly sessionKey = 'markup_authenticated';
   readonly email = signal<string | null>(sessionStorage.getItem('markup_email'));
 
   constructor() {
     // Remove tokens created by the previous persistent-storage implementation.
-    localStorage.removeItem(this.storageKey);
+    localStorage.removeItem('markup_access_token');
     localStorage.removeItem('markup_email');
   }
 
@@ -33,22 +31,25 @@ export class AuthService {
     );
   }
 
+  refresh() {
+    return this.http.post<AuthResponse>(`${environment.apiBaseUrl}/auth/refresh`, {}).pipe(
+      tap((response) => this.store(response)),
+    );
+  }
+
   logout(): void {
-    sessionStorage.removeItem(this.storageKey);
+    this.http.post<void>(`${environment.apiBaseUrl}/auth/logout`, {}).subscribe();
+    sessionStorage.removeItem(this.sessionKey);
     sessionStorage.removeItem('markup_email');
     this.email.set(null);
   }
 
   isAuthenticated(): boolean {
-    return Boolean(sessionStorage.getItem(this.storageKey));
-  }
-
-  token(): string | null {
-    return sessionStorage.getItem(this.storageKey);
+    return sessionStorage.getItem(this.sessionKey) === 'true';
   }
 
   private store(response: AuthResponse): void {
-    sessionStorage.setItem(this.storageKey, response.access_token);
+    sessionStorage.setItem(this.sessionKey, 'true');
     sessionStorage.setItem('markup_email', response.email);
     this.email.set(response.email);
   }

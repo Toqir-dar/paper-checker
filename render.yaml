@@ -30,4 +30,4 @@ services:
       # Update this once the frontend has a deployed URL — a wildcard-free exact
       # match is required for CORS to actually allow it (see app/config.py).
       - key: CORS_ORIGINS
-        value: http://localhost:4200
+        value: http://localhost:4200,https://paper-checker-rust.vercel.app,https://paper-checker-fvwt.vercel.app

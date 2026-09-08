@@ -7,12 +7,14 @@ import secrets
 import time
 from contextvars import ContextVar
 
-from fastapi import Header, HTTPException, status
+from fastapi import Cookie, Header, HTTPException, Request, status
 
 from app.config import settings
+from app.core.sessions import get_active_session
+from app.db import get_database
 
 
-_TOKEN_TTL_SECONDS = 60 * 60 * 24 * 7
+_TOKEN_TTL_SECONDS = 60 * 15
 _DEVELOPMENT_TOKEN_SECRET = secrets.token_urlsafe(32)
 _current_user_id: ContextVar[str | None] = ContextVar("current_user_id", default=None)
 
@@ -46,8 +48,8 @@ def verify_password(password: str, stored_hash: str) -> bool:
     return hmac.compare_digest(actual, expected)
 
 
-def create_access_token(user_id: str) -> str:
-    payload = {"sub": user_id, "exp": int(time.time()) + _TOKEN_TTL_SECONDS}
+def create_access_token(user_id: str, session_id: str) -> str:
+    payload = {"sub": user_id, "sid": session_id, "exp": int(time.time()) + _TOKEN_TTL_SECONDS}
     encoded = base64.urlsafe_b64encode(json.dumps(payload, separators=(",", ":")).encode()).decode().rstrip("=")
     signature = hmac.new(_token_secret().encode(), encoded.encode(), hashlib.sha256).digest()
     return f"{encoded}.{base64.urlsafe_b64encode(signature).decode().rstrip('=')}"
@@ -68,6 +70,34 @@ def get_user_id_from_token(token: str) -> str | None:
         return None
 
 
+def get_session_id_from_token(token: str) -> str | None:
+    try:
+        encoded, signature = token.split(".", 1)
+        expected = hmac.new(_token_secret().encode(), encoded.encode(), hashlib.sha256).digest()
+        provided = base64.urlsafe_b64decode(signature + "=" * (-len(signature) % 4))
+        if not hmac.compare_digest(expected, provided):
+            return None
+        payload = json.loads(base64.urlsafe_b64decode(encoded + "=" * (-len(encoded) % 4)))
+        if int(payload["exp"]) < time.time():
+            return None
+        return str(payload["sid"])
+    except (ValueError, KeyError, TypeError, json.JSONDecodeError, UnicodeError, binascii.Error):
+        return None
+
+
+async def get_authenticated_user_id(token: str | None) -> str | None:
+    if not token:
+        return None
+    user_id = get_user_id_from_token(token)
+    session_id = get_session_id_from_token(token)
+    if not user_id or not session_id:
+        return None
+    session = await get_active_session(get_database(), session_id)
+    if session is None or str(session.get("user_id")) != user_id:
+        return None
+    return user_id
+
+
 def _token_secret() -> str:
     if settings.auth_secret:
         return settings.auth_secret
@@ -77,12 +107,20 @@ def _token_secret() -> str:
 
 
 async def require_api_key(
+    request: Request,
     x_api_key: str | None = Header(default=None),
     authorization: str | None = Header(default=None),
+    session_cookie: str | None = Cookie(default=None, alias=settings.auth_cookie_name),
+    csrf_cookie: str | None = Cookie(default=None, alias=settings.auth_csrf_cookie_name),
+    csrf_header: str | None = Header(default=None, alias="X-CSRF-Token"),
 ) -> None:
-    """Require a valid login token, or the configured service API key."""
+    """Require a valid session cookie, bearer token, or configured service API key."""
     bearer_token = authorization.removeprefix("Bearer ") if authorization else None
-    if bearer_token and get_user_id_from_token(bearer_token):
+    authenticated_user_id = await get_authenticated_user_id(session_cookie or bearer_token)
+    if authenticated_user_id:
+        if session_cookie and request.method not in {"GET", "HEAD", "OPTIONS"}:
+            if not csrf_cookie or not csrf_header or not hmac.compare_digest(csrf_cookie, csrf_header):
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="CSRF validation failed")
         return
     if settings.api_key and x_api_key == settings.api_key:
         return

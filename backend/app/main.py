@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.core.logging import setup_logging
-from app.core.security import get_user_id_from_token, reset_current_user_id, set_current_user_id
+from app.core.security import get_authenticated_user_id, reset_current_user_id, set_current_user_id
 from app.db import close_mongo_connection, connect_to_mongo
 from app.routers import answer_keys, auth, batches, grading, reports, submissions, subjects
 
@@ -34,7 +34,8 @@ app.add_middleware(
 async def attach_authenticated_user(request, call_next):
     authorization = request.headers.get("authorization", "")
     token = authorization.removeprefix("Bearer ") if authorization.startswith("Bearer ") else None
-    context_token = set_current_user_id(get_user_id_from_token(token) if token else None)
+    token = request.cookies.get(settings.auth_cookie_name) or token
+    context_token = set_current_user_id(await get_authenticated_user_id(token))
     try:
         return await call_next(request)
     finally:

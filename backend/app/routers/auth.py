@@ -1,9 +1,12 @@
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+import secrets
+
+from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response, status
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from pydantic import BaseModel, Field
 
 from app.config import settings
 from app.core.rate_limit import InMemoryRateLimiter, RateLimitExceededError
+from app.core.sessions import create_session, revoke_session, rotate_session
 from app.core.security import create_access_token, hash_password, verify_password
 from app.db import get_database
 
@@ -17,9 +20,38 @@ class Credentials(BaseModel):
 
 
 class AuthResponse(BaseModel):
-    access_token: str
-    token_type: str = "bearer"
     email: str
+
+
+def _set_session_cookie(response: Response, access_token: str, refresh_token: str) -> None:
+    csrf_token = secrets.token_urlsafe(32)
+    response.set_cookie(
+        key=settings.auth_cookie_name,
+        value=access_token,
+        httponly=True,
+        secure=settings.auth_cookie_secure,
+        samesite=settings.auth_cookie_samesite,
+        max_age=60 * 15,
+        path="/",
+    )
+    response.set_cookie(
+        key=settings.auth_refresh_cookie_name,
+        value=refresh_token,
+        httponly=True,
+        secure=settings.auth_cookie_secure,
+        samesite=settings.auth_cookie_samesite,
+        max_age=60 * 60 * 24 * 30,
+        path="/auth",
+    )
+    response.set_cookie(
+        key=settings.auth_csrf_cookie_name,
+        value=csrf_token,
+        httponly=False,
+        secure=settings.auth_cookie_secure,
+        samesite=settings.auth_cookie_samesite,
+        max_age=60 * 15,
+        path="/",
+    )
 
 
 def _normalise_email(email: str) -> str:
@@ -59,6 +91,7 @@ async def _check_auth_rate_limit(request: Request, email: str, limit: int, windo
 async def signup(
     credentials: Credentials,
     request: Request,
+    response: Response,
     db: AsyncIOMotorDatabase = Depends(get_database),
 ) -> AuthResponse:
     email = _normalise_email(credentials.email)
@@ -73,13 +106,16 @@ async def signup(
     result = await users.insert_one({"email": email, "password_hash": hash_password(credentials.password)})
     user_id = str(result.inserted_id)
     await _claim_legacy_data(db, user_id, {"_id": result.inserted_id})
-    return AuthResponse(access_token=create_access_token(user_id), email=email)
+    session_id, refresh_token = await create_session(db, user_id, email)
+    _set_session_cookie(response, create_access_token(user_id, session_id), refresh_token)
+    return AuthResponse(email=email)
 
 
 @router.post("/login", response_model=AuthResponse)
 async def login(
     credentials: Credentials,
     request: Request,
+    response: Response,
     db: AsyncIOMotorDatabase = Depends(get_database),
 ) -> AuthResponse:
     email = _normalise_email(credentials.email)
@@ -91,4 +127,34 @@ async def login(
         raise HTTPException(status_code=401, detail="Email or password is incorrect")
     user_id = str(user["_id"])
     await _claim_legacy_data(db, user_id, user)
-    return AuthResponse(access_token=create_access_token(user_id), email=email)
+    session_id, refresh_token = await create_session(db, user_id, email)
+    _set_session_cookie(response, create_access_token(user_id, session_id), refresh_token)
+    return AuthResponse(email=email)
+
+
+@router.post("/refresh", response_model=AuthResponse)
+async def refresh(
+    response: Response,
+    refresh_token: str | None = Cookie(default=None, alias=settings.auth_refresh_cookie_name),
+    db: AsyncIOMotorDatabase = Depends(get_database),
+) -> AuthResponse:
+    if not refresh_token:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
+    rotated = await rotate_session(db, refresh_token)
+    if rotated is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Session expired")
+    new_session_id, new_refresh_token, user_id, email = rotated
+    _set_session_cookie(response, create_access_token(user_id, new_session_id), new_refresh_token)
+    return AuthResponse(email=email)
+
+
+@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
+async def logout(
+    response: Response,
+    refresh_token: str | None = Cookie(default=None, alias=settings.auth_refresh_cookie_name),
+    db: AsyncIOMotorDatabase = Depends(get_database),
+) -> None:
+    await revoke_session(db, refresh_token)
+    response.delete_cookie(key=settings.auth_cookie_name, path="/")
+    response.delete_cookie(key=settings.auth_csrf_cookie_name, path="/")
+    response.delete_cookie(key=settings.auth_refresh_cookie_name, path="/auth")
