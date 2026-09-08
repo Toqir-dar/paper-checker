@@ -4,6 +4,10 @@ import { catchError, switchMap, throwError } from 'rxjs';
 import { AuthService } from './services/auth.service';
 
 function csrfToken(): string | null {
+  const storedToken = sessionStorage.getItem('markup_csrf_token');
+  if (storedToken) {
+    return storedToken;
+  }
   const cookie = document.cookie
     .split('; ')
     .find((entry) => entry.startsWith('paper_checker_csrf='));
@@ -12,11 +16,10 @@ function csrfToken(): string | null {
 
 export const authInterceptor: HttpInterceptorFn = (request, next) => {
   const auth = inject(AuthService);
-  const token = csrfToken();
   const credentialedRequest = request.clone({ withCredentials: true });
   const requestWithCsrf =
-    token
-      ? credentialedRequest.clone({ setHeaders: { 'X-CSRF-Token': token } })
+    csrfToken()
+      ? credentialedRequest.clone({ setHeaders: { 'X-CSRF-Token': csrfToken()! } })
       : credentialedRequest;
 
   if (request.url.includes('/auth/')) {
@@ -29,7 +32,16 @@ export const authInterceptor: HttpInterceptorFn = (request, next) => {
         return throwError(() => error);
       }
       return auth.refresh().pipe(
-        switchMap(() => next(requestWithCsrf.clone({ setHeaders: { 'X-Auth-Retry': '1' } }))),
+        switchMap(() => {
+          const refreshedToken = csrfToken();
+          const retryRequest = refreshedToken
+            ? request.clone({
+                withCredentials: true,
+                setHeaders: { 'X-CSRF-Token': refreshedToken, 'X-Auth-Retry': '1' },
+              })
+            : request.clone({ withCredentials: true, setHeaders: { 'X-Auth-Retry': '1' } });
+          return next(retryRequest);
+        }),
         catchError((refreshError) => {
           auth.logout();
           return throwError(() => refreshError);

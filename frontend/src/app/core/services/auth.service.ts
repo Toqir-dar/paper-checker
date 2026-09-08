@@ -5,6 +5,7 @@ import { environment } from '../../../environments/environment';
 
 interface AuthResponse {
   email: string;
+  csrf_token: string;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -41,6 +42,7 @@ export class AuthService {
     this.http.post<void>(`${environment.apiBaseUrl}/auth/logout`, {}).subscribe();
     sessionStorage.removeItem(this.sessionKey);
     sessionStorage.removeItem('markup_email');
+    sessionStorage.removeItem('markup_csrf_token');
     this.email.set(null);
   }
 
@@ -51,6 +53,7 @@ export class AuthService {
   private store(response: AuthResponse): void {
     sessionStorage.setItem(this.sessionKey, 'true');
     sessionStorage.setItem('markup_email', response.email);
+    sessionStorage.setItem('markup_csrf_token', response.csrf_token);
     this.email.set(response.email);
   }
 }

@@ -21,9 +21,10 @@ class Credentials(BaseModel):
 
 class AuthResponse(BaseModel):
     email: str
+    csrf_token: str
 
 
-def _set_session_cookie(response: Response, access_token: str, refresh_token: str) -> None:
+def _set_session_cookie(response: Response, access_token: str, refresh_token: str) -> str:
     csrf_token = secrets.token_urlsafe(32)
     response.set_cookie(
         key=settings.auth_cookie_name,
@@ -34,6 +35,7 @@ def _set_session_cookie(response: Response, access_token: str, refresh_token: st
         max_age=60 * 15,
         path="/",
     )
+    return csrf_token
     response.set_cookie(
         key=settings.auth_refresh_cookie_name,
         value=refresh_token,
@@ -107,8 +109,8 @@ async def signup(
     user_id = str(result.inserted_id)
     await _claim_legacy_data(db, user_id, {"_id": result.inserted_id})
     session_id, refresh_token = await create_session(db, user_id, email)
-    _set_session_cookie(response, create_access_token(user_id, session_id), refresh_token)
-    return AuthResponse(email=email)
+    csrf_token = _set_session_cookie(response, create_access_token(user_id, session_id), refresh_token)
+    return AuthResponse(email=email, csrf_token=csrf_token)
 
 
 @router.post("/login", response_model=AuthResponse)
@@ -128,8 +130,8 @@ async def login(
     user_id = str(user["_id"])
     await _claim_legacy_data(db, user_id, user)
     session_id, refresh_token = await create_session(db, user_id, email)
-    _set_session_cookie(response, create_access_token(user_id, session_id), refresh_token)
-    return AuthResponse(email=email)
+    csrf_token = _set_session_cookie(response, create_access_token(user_id, session_id), refresh_token)
+    return AuthResponse(email=email, csrf_token=csrf_token)
 
 
 @router.post("/refresh", response_model=AuthResponse)
@@ -144,8 +146,8 @@ async def refresh(
     if rotated is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Session expired")
     new_session_id, new_refresh_token, user_id, email = rotated
-    _set_session_cookie(response, create_access_token(user_id, new_session_id), new_refresh_token)
-    return AuthResponse(email=email)
+    csrf_token = _set_session_cookie(response, create_access_token(user_id, new_session_id), new_refresh_token)
+    return AuthResponse(email=email, csrf_token=csrf_token)
 
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
