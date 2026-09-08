@@ -19,7 +19,15 @@ class AnswerKeyRepository:
         return answer_key
 
     async def get(self, answer_key_id: str) -> AnswerKey | None:
-        doc = await self._collection.find_one({"_id": ObjectId(answer_key_id), "user_id": current_user_id()})
+        # Older imports may have stored the id as a string instead of an ObjectId.
+        # Keep the ownership filter on both forms so deployed data can be read
+        # without allowing one account to access another account's key.
+        id_values: list[object] = [answer_key_id]
+        if ObjectId.is_valid(answer_key_id):
+            id_values.insert(0, ObjectId(answer_key_id))
+        doc = await self._collection.find_one(
+            {"_id": {"$in": id_values}, "user_id": current_user_id()}
+        )
         if doc is None:
             return None
         doc["_id"] = str(doc["_id"])

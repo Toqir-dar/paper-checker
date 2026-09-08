@@ -35,7 +35,7 @@ export class BatchUpload {
   private readonly submissionService = inject(SubmissionService);
   private readonly gradingService = inject(GradingService);
 
-  protected readonly answerKeyId = this.route.snapshot.paramMap.get('answerKeyId')!;
+  protected readonly answerKeyId = this.route.snapshot.paramMap.get('answerKeyId') ?? '';
 
   protected readonly files = signal<FileProgress[]>([]);
   protected readonly running = signal(false);
@@ -59,6 +59,10 @@ export class BatchUpload {
       this.errorMessage.set('Select every scanned paper from the folder first.');
       return;
     }
+    if (!this.answerKeyId) {
+      this.errorMessage.set('No answer key was selected. Return to the answer-key list and start again.');
+      return;
+    }
 
     this.running.set(true);
     this.errorMessage.set(null);
@@ -69,9 +73,11 @@ export class BatchUpload {
         const allIndices = Array.from({ length: this.files().length }, (_, i) => i);
         void this.runQueue(batch.id, allIndices);
       },
-      error: () => {
+      error: (error) => {
         this.running.set(false);
-        this.errorMessage.set('Could not start the batch. Check that the backend is running and try again.');
+        this.errorMessage.set(
+          error?.error?.detail || 'Could not start the batch. Check that the backend is running and try again.',
+        );
       },
     });
   }
