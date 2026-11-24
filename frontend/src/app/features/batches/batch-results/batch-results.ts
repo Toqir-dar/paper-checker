@@ -31,6 +31,12 @@ export class BatchResults {
     () => this.detail()?.rows.filter((r) => r.result !== null).length ?? 0,
   );
 
+  protected readonly duplicateCount = computed(() => this.analytics()?.lsh_pairs.length ?? 0);
+  protected readonly warningCount = computed(() => this.analytics()?.warnings.length ?? 0);
+  protected readonly patternCount = computed(
+    () => this.analytics()?.itemsets.frequent_itemsets.length ?? 0,
+  );
+
   protected readonly clusterBySubmission = computed(() => {
     const map = new Map<string, number>();
     for (const c of this.analytics()?.clusters ?? []) {
@@ -38,6 +44,14 @@ export class BatchResults {
     }
     return map;
   });
+
+  protected readonly nearDuplicateWarnings = computed(() =>
+    (this.analytics()?.warnings ?? []).filter((w) => w.startsWith('possible_near_duplicate:')),
+  );
+
+  protected readonly otherWarnings = computed(() =>
+    (this.analytics()?.warnings ?? []).filter((w) => !w.startsWith('possible_near_duplicate:')),
+  );
 
   constructor() {
     this.batchService.get(this.batchId).subscribe({
@@ -90,8 +104,21 @@ export class BatchResults {
     return `${row.result.total_points_awarded}/${row.result.total_points_possible}`;
   }
 
-  protected clusterLabel(row: BatchRow): string {
-    const id = row.submission.id ? this.clusterBySubmission().get(row.submission.id) : undefined;
-    return id === undefined ? '' : `C${id}`;
+  protected clusterId(row: BatchRow): number | undefined {
+    return row.submission.id ? this.clusterBySubmission().get(row.submission.id) : undefined;
+  }
+
+  protected pct(value: number | null | undefined): string {
+    if (value === null || value === undefined || Number.isNaN(value)) return '—';
+    return `${Math.round(value * 100)}%`;
+  }
+
+  protected fixed(value: number | null | undefined, digits = 2): string {
+    if (value === null || value === undefined || Number.isNaN(value)) return '—';
+    return value.toFixed(digits);
+  }
+
+  protected index(i: number): string {
+    return String(i + 1).padStart(2, '0');
   }
 }

@@ -7,12 +7,15 @@
     @if (detail()) {
       <p class="page-header__subtitle">
         {{ gradedCount() }} of {{ detail()!.rows.length }} papers graded.
+        @if (!analytics()) {
+          Run data mining when you want near-duplicates, clusters, and shared mistakes on this stack.
+        }
       </p>
     }
   </div>
   <div class="actions">
     <button type="button" class="btn btn-secondary" (click)="runAnalytics()" [disabled]="analyticsLoading()">
-      {{ analyticsLoading() ? 'Running analytics…' : (analytics() ? 'Re-run DM analytics' : 'Run DM analytics') }}
+      {{ analyticsLoading() ? 'Mining…' : analytics() ? 'Run mining again' : 'Run data mining' }}
     </button>
     <a [href]="csvUrl" class="btn btn-primary" download>Download CSV</a>
   </div>
@@ -26,169 +29,412 @@
 }
 
 @if (loading()) {
-  <p class="text-muted mt-6">Loading…</p>
+  <p class="mono muted mt-6">Loading the batch…</p>
 } @else if (detail() && detail()!.rows.length === 0) {
   <div class="empty-state">
     <p class="figure">No papers in this batch</p>
+    <p class="muted mt-4">Upload papers against this answer key, then come back.</p>
   </div>
 } @else if (detail()) {
-  <nav class="tabs mt-6" aria-label="Batch analytics tabs">
-    <button type="button" class="tabs__btn" [class.tabs__btn--active]="activeTab() === 'overview'" (click)="setTab('overview')">Overview</button>
-    <button type="button" class="tabs__btn" [class.tabs__btn--active]="activeTab() === 'duplicates'" (click)="setTab('duplicates')">Near-duplicates</button>
-    <button type="button" class="tabs__btn" [class.tabs__btn--active]="activeTab() === 'clusters'" (click)="setTab('clusters')">Clusters</button>
-    <button type="button" class="tabs__btn" [class.tabs__btn--active]="activeTab() === 'patterns'" (click)="setTab('patterns')">Mistake patterns</button>
-    <button type="button" class="tabs__btn" [class.tabs__btn--active]="activeTab() === 'samples'" (click)="setTab('samples')">Samples</button>
-  </nav>
+  @if (analytics(); as a) {
+    <div class="stats">
+      <div class="stats__cell">
+        <span class="figure">{{ detail()!.rows.length }}</span>
+        <span class="label">Papers</span>
+      </div>
+      <div class="stats__cell">
+        <span class="figure" [class.marked]="duplicateCount() > 0">{{ duplicateCount() }}</span>
+        <span class="label">Near-duplicate pairs</span>
+      </div>
+      <div class="stats__cell">
+        <span class="figure">{{ a.chosen_k || '—' }}</span>
+        <span class="label">Answer clusters (k)</span>
+      </div>
+      <div class="stats__cell">
+        <span class="figure">{{ patternCount() }}</span>
+        <span class="label">Mistake patterns</span>
+      </div>
+    </div>
+  }
 
+  <div class="section-rule">
+    <h2>Look at</h2>
+    <span class="mono muted">{{ analytics() ? 'mining ready' : 'papers only' }}</span>
+  </div>
+
+  <div class="lookat" role="tablist" aria-label="Batch views">
+    <button
+      type="button"
+      class="lookat__btn"
+      role="tab"
+      [class.lookat__btn--active]="activeTab() === 'overview'"
+      (click)="setTab('overview')"
+    >
+      Overview
+    </button>
+    <button
+      type="button"
+      class="lookat__btn"
+      role="tab"
+      [class.lookat__btn--active]="activeTab() === 'duplicates'"
+      (click)="setTab('duplicates')"
+    >
+      Near-duplicates
+      @if (duplicateCount() > 0) {
+        <span class="tag tag--flag">{{ duplicateCount() }}</span>
+      }
+    </button>
+    <button
+      type="button"
+      class="lookat__btn"
+      role="tab"
+      [class.lookat__btn--active]="activeTab() === 'clusters'"
+      (click)="setTab('clusters')"
+    >
+      Clusters
+    </button>
+    <button
+      type="button"
+      class="lookat__btn"
+      role="tab"
+      [class.lookat__btn--active]="activeTab() === 'patterns'"
+      (click)="setTab('patterns')"
+    >
+      Mistake patterns
+    </button>
+    <button
+      type="button"
+      class="lookat__btn"
+      role="tab"
+      [class.lookat__btn--active]="activeTab() === 'samples'"
+      (click)="setTab('samples')"
+    >
+      Audit sample
+      @if (warningCount() > 0) {
+        <span class="tag tag--quiet">{{ warningCount() }} notes</span>
+      }
+    </button>
+  </div>
+
+  <!-- ============================== OVERVIEW ============================== -->
   @if (activeTab() === 'overview') {
-    <div class="ruled">
+    <div class="ruled" style="border-top: none; margin-top: 0">
       @for (row of detail()!.rows; track row.submission.id; let i = $index) {
-        <div class="ruled__row">
-          <span class="ruled__index">{{ i + 1 }}</span>
+        <a class="ruled__row" [routerLink]="['/submissions', row.submission.id, 'report']">
+          <span class="ruled__index">{{ index(i) }}</span>
           <span class="ruled__primary">
             Roll {{ row.submission.roll_number || '(unreadable)' }}
-            @if (clusterLabel(row)) {
-              <span class="cluster-chip">{{ clusterLabel(row) }}</span>
+            @if (clusterId(row) !== undefined) {
+              <span class="tag tag--quiet">cluster {{ clusterId(row) }}</span>
             }
           </span>
           <span class="ruled__secondary">{{ wrongAnswers(row) }}</span>
-          <span class="ruled__score">{{ scoreLabel(row) }}</span>
-          <a [routerLink]="['/submissions', row.submission.id, 'report']" class="ruled__chevron">→</a>
-        </div>
+          <span class="ruled__score mono">{{ scoreLabel(row) }}</span>
+          <span class="ruled__chevron">→</span>
+        </a>
       }
     </div>
+
     @if (analytics()?.eda; as eda) {
-      <div class="panel mt-6">
-        <h2 class="panel__title">Score summary</h2>
-        <p class="text-muted">
-          n={{ eda.n_students }}, mean={{ eda.mean_score ?? '—' }}, std={{ eda.std_score ?? '—' }}
-        </p>
-        @for (c of eda.correlations; track c.feature_a + c.feature_b) {
+      <div class="section-rule">
+        <h2>Score spread</h2>
+        <span class="mono muted">Bonferroni-aware</span>
+      </div>
+      <div class="split">
+        <div class="split__cell">
+          <span class="label">Students graded</span>
+          <span class="figure">{{ eda.n_students }}</span>
+        </div>
+        <div class="split__cell">
+          <span class="label">Mean score</span>
+          <span class="figure">{{ pct(eda.mean_score) }}</span>
+        </div>
+        <div class="split__cell">
+          <span class="label">Std. deviation</span>
+          <span class="figure">{{ fixed(eda.std_score, 3) }}</span>
+        </div>
+      </div>
+      @for (c of eda.correlations; track c.feature_a + c.feature_b) {
+        <div class="margin-note">
+          <span class="label">{{ c.feature_a }} × {{ c.feature_b }}</span>
           <p>
-            {{ c.feature_a }} vs {{ c.feature_b }}: r={{ c.pearson_r }},
-            p≈{{ c.p_value_approx }}
+            r = {{ fixed(c.pearson_r, 3) }}, p ≈ {{ fixed(c.p_value_approx, 4) }}.
             @if (c.significant_raw && !c.significant_bonferroni) {
-              <span> (spurious before Bonferroni)</span>
+              Looks significant before Bonferroni — treat as a multiple-testing risk, not a real effect.
+            } @else if (c.significant_bonferroni) {
+              Still significant after Bonferroni; check for data-entry bias before interpreting.
+            } @else {
+              No strong evidence of a relationship after correction.
             }
           </p>
-        }
-      </div>
+        </div>
+      }
     }
   }
 
+  <!-- =========================== NEAR-DUPLICATES =========================== -->
   @if (activeTab() === 'duplicates') {
     @if (!analytics()) {
-      <p class="text-muted mt-6">Run DM analytics to detect near-duplicate answers (MinHash + LSH).</p>
+      <div class="empty-state">
+        <p class="figure">Mining not run</p>
+        <p class="muted mt-4">
+          Near-duplicates use shingles, MinHash, and LSH on written answers. Grade the stack, then
+          <button type="button" class="btn-link" (click)="runAnalytics()">run data mining</button>.
+        </p>
+      </div>
     } @else {
-      <div class="panel mt-6">
-        <h2 class="panel__title">LSH metrics</h2>
-        @for (m of analytics()!.lsh_metrics; track m.question_id) {
-          <p>
-            {{ m.question_id }}: candidates={{ m.lsh_candidates }}, similar={{ m.brute_similar_pairs }},
-            FP={{ m.false_positives }}, FN={{ m.false_negatives }}
-          </p>
-        }
+      <div class="section-rule" style="margin-top: var(--s6)">
+        <h2>LSH metrics by question</h2>
+        <span class="mono muted">FP / FN vs brute Jaccard</span>
       </div>
-      <div class="ruled">
-        @for (pair of analytics()!.lsh_pairs; track pair.submission_id_a + pair.submission_id_b + pair.question_id) {
-          <div class="ruled__row">
-            <span class="ruled__primary">{{ pair.question_id }}</span>
-            <span class="ruled__secondary">
-              {{ pair.roll_a || pair.submission_id_a }} ↔ {{ pair.roll_b || pair.submission_id_b }}
-              · Jaccard {{ pair.jaccard }}
-              @if (pair.cosine !== null) {
-                · Cosine {{ pair.cosine }}
-              }
-            </span>
-          </div>
-        } @empty {
-          <p class="text-muted mt-6">No near-duplicate pairs above threshold.</p>
-        }
+      @if (analytics()!.lsh_metrics.length === 0) {
+        <p class="muted mt-4">No free-text answers to compare.</p>
+      } @else {
+        <div class="ruled" style="border-top: none; margin-top: 0">
+          @for (m of analytics()!.lsh_metrics; track m.question_id) {
+            <div class="ruled__row">
+              <span class="ruled__primary mono">{{ m.question_id }}</span>
+              <span class="ruled__secondary">
+                <span class="mono">{{ m.lsh_candidates }}</span> candidates ·
+                <span class="mono">{{ m.brute_similar_pairs }}</span> similar ·
+                FP <span class="mono">{{ m.false_positives }}</span> ·
+                FN <span class="mono">{{ m.false_negatives }}</span>
+              </span>
+              <span class="tag tag--quiet">θ {{ pct(m.threshold) }}</span>
+            </div>
+          }
+        </div>
+      }
+
+      <div class="section-rule">
+        <h2>Flagged pairs</h2>
+        <span class="mono muted">{{ duplicateCount() }} above threshold</span>
       </div>
+      @if (analytics()!.lsh_pairs.length === 0) {
+        <p class="muted mt-4">No near-duplicate pairs above the similarity threshold.</p>
+      } @else {
+        <div class="ruled" style="border-top: none; margin-top: 0">
+          @for (pair of analytics()!.lsh_pairs; track pair.submission_id_a + pair.submission_id_b + pair.question_id; let i = $index) {
+            <div class="ruled__row">
+              <span class="ruled__index">{{ index(i) }}</span>
+              <span class="ruled__primary">
+                <span class="mono">{{ pair.question_id }}</span>
+                <span class="tag tag--flag">near copy</span>
+                @if (pair.lsh_candidate) {
+                  <span class="tag tag--quiet">LSH</span>
+                }
+              </span>
+              <span class="ruled__secondary">
+                Roll {{ pair.roll_a || '—' }} ↔ Roll {{ pair.roll_b || '—' }}
+              </span>
+              <span class="ruled__score mono">
+                J {{ pct(pair.jaccard) }}
+                @if (pair.cosine !== null) {
+                  · C {{ pct(pair.cosine) }}
+                }
+              </span>
+            </div>
+          }
+        </div>
+      }
+
       @if (analytics()!.pagerank.length) {
-        <div class="panel mt-6">
-          <h2 class="panel__title">Copy-cluster centrality (PageRank)</h2>
-          @for (p of analytics()!.pagerank; track p.submission_id) {
-            <p>{{ p.roll_number || p.submission_id }}: {{ p.score }}</p>
+        <div class="section-rule">
+          <h2>Copy-cluster centrality</h2>
+          <span class="mono muted">PageRank on the similarity graph</span>
+        </div>
+        <div class="ruled" style="border-top: none; margin-top: 0">
+          @for (p of analytics()!.pagerank; track p.submission_id; let i = $index) {
+            <div class="ruled__row">
+              <span class="ruled__index">{{ index(i) }}</span>
+              <span class="ruled__primary">Roll {{ p.roll_number || p.submission_id }}</span>
+              <span class="ruled__score mono">{{ fixed(p.score, 4) }}</span>
+            </div>
           }
         </div>
       }
     }
   }
 
+  <!-- ============================== CLUSTERS ============================== -->
   @if (activeTab() === 'clusters') {
     @if (!analytics()) {
-      <p class="text-muted mt-6">Run DM analytics to cluster answer embeddings.</p>
+      <div class="empty-state">
+        <p class="figure">Mining not run</p>
+        <p class="muted mt-4">
+          Clusters group papers by MiniLM answer embeddings.
+          <button type="button" class="btn-link" (click)="runAnalytics()">Run data mining</button>.
+        </p>
+      </div>
     } @else {
-      <p class="text-muted mt-6">Chosen k={{ analytics()!.chosen_k }}</p>
-      <div class="ruled">
+      <div class="section-rule" style="margin-top: var(--s6)">
+        <h2>Papers by cluster</h2>
+        <span class="mono muted">chosen k = {{ analytics()!.chosen_k }}</span>
+      </div>
+      <div class="ruled" style="border-top: none; margin-top: 0">
         @for (row of detail()!.rows; track row.submission.id; let i = $index) {
-          <div class="ruled__row" [attr.data-cluster]="clusterLabel(row)">
-            <span class="ruled__index">{{ i + 1 }}</span>
+          <a class="ruled__row" [routerLink]="['/submissions', row.submission.id, 'report']">
+            <span class="ruled__index">{{ index(i) }}</span>
             <span class="ruled__primary">Roll {{ row.submission.roll_number || '(unreadable)' }}</span>
-            <span class="ruled__secondary">{{ clusterLabel(row) || '—' }}</span>
-            <span class="ruled__score">{{ scoreLabel(row) }}</span>
-          </div>
+            <span class="ruled__secondary">
+              @if (clusterId(row) !== undefined) {
+                <span class="tag tag--quiet">cluster {{ clusterId(row) }}</span>
+              } @else {
+                <span class="muted">unassigned</span>
+              }
+            </span>
+            <span class="ruled__score mono">{{ scoreLabel(row) }}</span>
+            <span class="ruled__chevron">→</span>
+          </a>
         }
       </div>
+
       @if (analytics()!.elbow.length) {
-        <div class="panel mt-6">
-          <h2 class="panel__title">Elbow (inertia)</h2>
+        <div class="section-rule">
+          <h2>Elbow curve</h2>
+          <span class="mono muted">inertia by k</span>
+        </div>
+        <div class="elbow" aria-label="Elbow inertia values">
           @for (e of analytics()!.elbow; track e.k) {
-            <p>k={{ e.k }} → {{ e.inertia }}</p>
+            <div class="elbow__row">
+              <span class="mono muted">k {{ e.k }}</span>
+              <div class="elbow__track" aria-hidden="true">
+                <div
+                  class="elbow__fill"
+                  [style.width.%]="analytics()!.elbow[0].inertia ? (e.inertia / analytics()!.elbow[0].inertia) * 100 : 0"
+                ></div>
+              </div>
+              <span class="mono">{{ fixed(e.inertia, 2) }}</span>
+            </div>
           }
         </div>
       }
     }
   }
 
+  <!-- =========================== MISTAKE PATTERNS =========================== -->
   @if (activeTab() === 'patterns') {
     @if (!analytics()) {
-      <p class="text-muted mt-6">Run DM analytics to mine frequent wrong-answer patterns.</p>
+      <div class="empty-state">
+        <p class="figure">Mining not run</p>
+        <p class="muted mt-4">
+          Frequent co-wrong questions come from A-Priori on miss baskets.
+          <button type="button" class="btn-link" (click)="runAnalytics()">Run data mining</button>.
+        </p>
+      </div>
     } @else {
-      <div class="panel mt-6">
-        <h2 class="panel__title">Frequent itemsets ({{ analytics()!.itemsets.method }})</h2>
-        @for (item of analytics()!.itemsets.frequent_itemsets; track item.items.join(',')) {
-          <p>{{ item.items.join(', ') }} — support {{ item.support }} (n={{ item.count }})</p>
-        } @empty {
-          <p class="text-muted">No frequent itemsets at the current support threshold.</p>
-        }
+      <div class="section-rule" style="margin-top: var(--s6)">
+        <h2>Frequent itemsets</h2>
+        <span class="mono muted">{{ analytics()!.itemsets.method }}</span>
       </div>
-      <div class="panel mt-6">
-        <h2 class="panel__title">Association rules</h2>
-        @for (rule of analytics()!.itemsets.rules; track rule.antecedent.join(',') + rule.consequent.join(',')) {
-          <p>
-            {{ rule.antecedent.join(', ') }} → {{ rule.consequent.join(', ') }}
-            (conf {{ rule.confidence }}, lift {{ rule.lift }})
-          </p>
-        } @empty {
-          <p class="text-muted">No association rules.</p>
-        }
+      @if (analytics()!.itemsets.frequent_itemsets.length === 0) {
+        <p class="muted mt-4">No frequent itemsets at the current support threshold.</p>
+      } @else {
+        <div class="ruled" style="border-top: none; margin-top: 0">
+          @for (item of analytics()!.itemsets.frequent_itemsets; track item.items.join(','); let i = $index) {
+            <div class="ruled__row">
+              <span class="ruled__index">{{ index(i) }}</span>
+              <span class="ruled__primary mono">{{ item.items.join(' · ') }}</span>
+              <span class="ruled__secondary">support {{ pct(item.support) }} · n = {{ item.count }}</span>
+            </div>
+          }
+        </div>
+      }
+
+      <div class="section-rule">
+        <h2>Association rules</h2>
+        <span class="mono muted">confidence · lift</span>
       </div>
+      @if (analytics()!.itemsets.rules.length === 0) {
+        <p class="muted mt-4">No association rules from this batch.</p>
+      } @else {
+        <div class="ruled" style="border-top: none; margin-top: 0">
+          @for (rule of analytics()!.itemsets.rules; track rule.antecedent.join(',') + rule.consequent.join(','); let i = $index) {
+            <div class="ruled__row">
+              <span class="ruled__index">{{ index(i) }}</span>
+              <span class="ruled__primary mono">
+                {{ rule.antecedent.join(', ') }}
+                <span class="muted"> → </span>
+                {{ rule.consequent.join(', ') }}
+              </span>
+              <span class="ruled__secondary">
+                conf {{ pct(rule.confidence) }} · lift {{ fixed(rule.lift, 2) }} · support {{ pct(rule.support) }}
+              </span>
+            </div>
+          }
+        </div>
+      }
+
+      @if (analytics()?.recommender_eval; as ev) {
+        <div class="section-rule">
+          <h2>Review recommender</h2>
+          <span class="mono muted">leave-one-out check</span>
+        </div>
+        <div class="split">
+          <div class="split__cell">
+            <span class="label">Precision@{{ ev.k }}</span>
+            <span class="figure">{{ ev.precision_at_k === null ? '—' : pct(ev.precision_at_k) }}</span>
+          </div>
+          <div class="split__cell">
+            <span class="label">RMSE</span>
+            <span class="figure">{{ fixed(ev.rmse, 3) }}</span>
+          </div>
+          <div class="split__cell">
+            <span class="label">Held out</span>
+            <span class="figure">{{ ev.held_out }}</span>
+          </div>
+        </div>
+      }
     }
   }
 
+  <!-- ============================ AUDIT SAMPLE ============================ -->
   @if (activeTab() === 'samples') {
     @if (!analytics()) {
-      <p class="text-muted mt-6">Run DM analytics to draw a reservoir audit sample.</p>
-    } @else {
-      <div class="ruled">
-        @for (s of analytics()!.audit_samples; track s.submission_id + s.question_id) {
-          <div class="ruled__row">
-            <span class="ruled__primary">{{ s.roll_number || s.submission_id }} · {{ s.question_id }}</span>
-            <span class="ruled__secondary">{{ s.answer_text }}</span>
-          </div>
-        } @empty {
-          <p class="text-muted mt-6">No text answers to sample.</p>
-        }
+      <div class="empty-state">
+        <p class="figure">Mining not run</p>
+        <p class="muted mt-4">
+          Reservoir sampling draws a small audit set from the answer stream.
+          <button type="button" class="btn-link" (click)="runAnalytics()">Run data mining</button>.
+        </p>
       </div>
-      @if (analytics()?.warnings?.length) {
-        <div class="panel mt-6">
-          <h2 class="panel__title">Warnings</h2>
-          @for (w of analytics()!.warnings; track w) {
+    } @else {
+      <div class="section-rule" style="margin-top: var(--s6)">
+        <h2>Reservoir sample</h2>
+        <span class="mono muted">for a second look</span>
+      </div>
+      @if (analytics()!.audit_samples.length === 0) {
+        <p class="muted mt-4">No text answers to sample.</p>
+      } @else {
+        <div class="ruled" style="border-top: none; margin-top: 0">
+          @for (s of analytics()!.audit_samples; track s.submission_id + s.question_id; let i = $index) {
+            <div class="ruled__row ruled__row--block">
+              <span class="ruled__index">{{ index(i) }}</span>
+              <div class="sample">
+                <div class="sample__meta">
+                  <span class="mono">{{ s.question_id }}</span>
+                  <span class="muted">·</span>
+                  <span>Roll {{ s.roll_number || s.submission_id }}</span>
+                </div>
+                <p class="quote" style="margin-top: 8px">{{ s.answer_text }}</p>
+              </div>
+            </div>
+          }
+        </div>
+      }
+
+      @if (otherWarnings().length) {
+        <div class="margin-note">
+          <span class="label">Before you trust the mining</span>
+          @for (w of otherWarnings(); track w) {
             <p>{{ w }}</p>
           }
         </div>
+      }
+      @if (nearDuplicateWarnings().length && activeTab() === 'samples') {
+        <p class="mono muted mt-6">
+          {{ nearDuplicateWarnings().length }} near-duplicate warnings are listed under Near-duplicates.
+        </p>
       }
     }
   }
