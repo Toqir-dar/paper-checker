@@ -2,6 +2,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
+import { BatchAnalytics } from '../models/batch-analytics.model';
 import { Batch, BatchDetail } from '../models/batch.model';
 
 @Injectable({ providedIn: 'root' })
@@ -20,6 +21,15 @@ export class BatchService {
 
   get(id: string): Observable<BatchDetail> {
     return this.http.get<BatchDetail>(`${this.baseUrl}/${id}`);
+  }
+
+  runAnalytics(id: string, itemsetMethod: 'apriori' | 'pcy' = 'apriori'): Observable<BatchAnalytics> {
+    const params = new HttpParams().set('itemset_method', itemsetMethod);
+    return this.http.post<BatchAnalytics>(`${this.baseUrl}/${id}/analytics`, null, { params });
+  }
+
+  getAnalytics(id: string): Observable<BatchAnalytics> {
+    return this.http.get<BatchAnalytics>(`${this.baseUrl}/${id}/analytics`);
   }
 
   /** GET endpoints carry no API key requirement, so this can be used directly

@@ -1,2 +1,39 @@
-/* No component-specific overrides yet — layout comes entirely from the
-   shared design tokens in styles.css (page-header, ruled, empty-state). */
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  border-bottom: 1px solid color-mix(in srgb, currentColor 18%, transparent);
+  padding-bottom: 0.35rem;
+}
+
+.tabs__btn {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  padding: 0.4rem 0.75rem;
+  font: inherit;
+  color: inherit;
+  opacity: 0.65;
+}
+
+.tabs__btn--active {
+  opacity: 1;
+  border-bottom: 2px solid currentColor;
+}
+
+.panel {
+  padding: 0.75rem 0;
+}
+
+.panel__title {
+  font-size: 1rem;
+  margin: 0 0 0.5rem;
+}
+
+.cluster-chip {
+  display: inline-block;
+  margin-left: 0.4rem;
+  font-size: 0.75rem;
+  opacity: 0.8;
+}

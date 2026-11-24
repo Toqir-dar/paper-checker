@@ -1,7 +1,7 @@
 import logging
 from typing import Any
 
-from app.grading.document_images import file_to_page_images
+from app.grading.document_images import file_to_page_images_with_meta
 from app.grading.vision_client import VisionClient
 from app.models.answer_key import AnswerKey
 
@@ -78,7 +78,11 @@ async def extract_submission_responses(
     """Parse a scanned answer sheet into mcq_responses/text_responses keyed by
     the answer key's question IDs. Returns a plain dict (not a Submission) —
     the caller still needs to attach student_name and answer_key_id."""
-    images, mime_type = file_to_page_images(file_bytes, content_type)
+    images, mime_type, chunk_meta = file_to_page_images_with_meta(file_bytes, content_type)
+    logger.info(
+        "PDF/image chunk map: %s",
+        [{"page_index": m.page_index, "byte_size": m.byte_size} for m in chunk_meta],
+    )
 
     result, model = await vision_client.generate_json_from_images(
         images,
@@ -86,6 +90,6 @@ async def extract_submission_responses(
         prompt=_build_prompt(answer_key),
         system_instruction=_SYSTEM_INSTRUCTION,
     )
-    logger.info("Submission responses extracted by %s", model)
+    logger.info("Submission responses extracted by %s (%d page chunks)", model, len(chunk_meta))
 
     return result

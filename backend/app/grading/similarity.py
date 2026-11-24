@@ -36,3 +36,23 @@ async def cosine_similarity(text_a: str, text_b: str) -> float:
     block the event loop alongside the async LLM calls elsewhere in grading.
     """
     return await asyncio.to_thread(_cosine_similarity_sync, text_a, text_b)
+
+
+def _embed_texts_sync(texts: list[str]) -> list[list[float]]:
+    if not texts:
+        return []
+    model = _get_model()
+    vectors = list(model.embed(texts))
+    out: list[list[float]] = []
+    for vec in vectors:
+        arr = np.asarray(vec, dtype=float)
+        norm = np.linalg.norm(arr)
+        if norm:
+            arr = arr / norm
+        out.append(arr.tolist())
+    return out
+
+
+async def embed_texts(texts: list[str]) -> list[list[float]]:
+    """Batch-embed texts with MiniLM; returns L2-normalized vectors."""
+    return await asyncio.to_thread(_embed_texts_sync, texts)

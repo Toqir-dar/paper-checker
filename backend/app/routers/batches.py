@@ -1,12 +1,15 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import StreamingResponse
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
+from app.analytics.batch_jobs import run_batch_analytics
 from app.core.security import require_api_key
 from app.db import get_database
 from app.models.batch import Batch, BatchDetail, BatchRow
+from app.models.batch_analytics import BatchAnalytics
 from app.reporting import build_submissions_csv
 from app.repositories.answer_key_repo import AnswerKeyRepository
+from app.repositories.batch_analytics_repo import BatchAnalyticsRepository
 from app.repositories.batch_repo import BatchRepository
 from app.repositories.result_repo import ResultRepository
 from app.repositories.submission_repo import SubmissionRepository
@@ -79,6 +82,40 @@ async def download_batch_csv(
     )
 
 
+@router.post(
+    "/{batch_id}/analytics",
+    response_model=BatchAnalytics,
+    dependencies=[Depends(require_api_key)],
+)
+async def run_analytics(
+    batch_id: str,
+    itemset_method: str = Query(default="apriori", pattern="^(apriori|pcy)$"),
+    db: AsyncIOMotorDatabase = Depends(get_database),
+) -> BatchAnalytics:
+    """Run product DM analytics (LSH, clustering, itemsets, PageRank, EDA) on a batch."""
+    detail = await _load_batch_detail(batch_id, db)
+    analytics = await run_batch_analytics(detail, itemset_method=itemset_method)
+    return await BatchAnalyticsRepository(db).upsert(analytics)
+
+
+@router.get(
+    "/{batch_id}/analytics",
+    response_model=BatchAnalytics,
+    dependencies=[Depends(require_api_key)],
+)
+async def get_analytics(
+    batch_id: str,
+    db: AsyncIOMotorDatabase = Depends(get_database),
+) -> BatchAnalytics:
+    analytics = await BatchAnalyticsRepository(db).get_by_batch(batch_id)
+    if analytics is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No analytics for this batch yet — POST /batches/{id}/analytics first.",
+        )
+    return analytics
+
+
 @router.delete(
     "/{batch_id}",
     status_code=status.HTTP_204_NO_CONTENT,
@@ -100,3 +137,4 @@ async def delete_batch(
 
     await ResultRepository(db).delete_by_submission_ids(submission_ids)
     await submission_repo.delete_by_batch(batch_id)
+    await BatchAnalyticsRepository(db).delete_by_batch(batch_id)

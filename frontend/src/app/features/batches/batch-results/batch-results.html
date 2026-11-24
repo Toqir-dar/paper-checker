@@ -11,12 +11,18 @@
     }
   </div>
   <div class="actions">
+    <button type="button" class="btn btn-secondary" (click)="runAnalytics()" [disabled]="analyticsLoading()">
+      {{ analyticsLoading() ? 'Running analytics…' : (analytics() ? 'Re-run DM analytics' : 'Run DM analytics') }}
+    </button>
     <a [href]="csvUrl" class="btn btn-primary" download>Download CSV</a>
   </div>
 </div>
 
 @if (errorMessage()) {
   <div class="alert alert-danger mt-6">{{ errorMessage() }}</div>
+}
+@if (analyticsError()) {
+  <div class="alert alert-danger mt-6">{{ analyticsError() }}</div>
 }
 
 @if (loading()) {
@@ -26,15 +32,164 @@
     <p class="figure">No papers in this batch</p>
   </div>
 } @else if (detail()) {
-  <div class="ruled">
-    @for (row of detail()!.rows; track row.submission.id; let i = $index) {
-      <div class="ruled__row">
-        <span class="ruled__index">{{ i + 1 }}</span>
-        <span class="ruled__primary">Roll {{ row.submission.roll_number || '(unreadable)' }}</span>
-        <span class="ruled__secondary">{{ wrongAnswers(row) }}</span>
-        <span class="ruled__score">{{ scoreLabel(row) }}</span>
-        <a [routerLink]="['/submissions', row.submission.id, 'report']" class="ruled__chevron">→</a>
+  <nav class="tabs mt-6" aria-label="Batch analytics tabs">
+    <button type="button" class="tabs__btn" [class.tabs__btn--active]="activeTab() === 'overview'" (click)="setTab('overview')">Overview</button>
+    <button type="button" class="tabs__btn" [class.tabs__btn--active]="activeTab() === 'duplicates'" (click)="setTab('duplicates')">Near-duplicates</button>
+    <button type="button" class="tabs__btn" [class.tabs__btn--active]="activeTab() === 'clusters'" (click)="setTab('clusters')">Clusters</button>
+    <button type="button" class="tabs__btn" [class.tabs__btn--active]="activeTab() === 'patterns'" (click)="setTab('patterns')">Mistake patterns</button>
+    <button type="button" class="tabs__btn" [class.tabs__btn--active]="activeTab() === 'samples'" (click)="setTab('samples')">Samples</button>
+  </nav>
+
+  @if (activeTab() === 'overview') {
+    <div class="ruled">
+      @for (row of detail()!.rows; track row.submission.id; let i = $index) {
+        <div class="ruled__row">
+          <span class="ruled__index">{{ i + 1 }}</span>
+          <span class="ruled__primary">
+            Roll {{ row.submission.roll_number || '(unreadable)' }}
+            @if (clusterLabel(row)) {
+              <span class="cluster-chip">{{ clusterLabel(row) }}</span>
+            }
+          </span>
+          <span class="ruled__secondary">{{ wrongAnswers(row) }}</span>
+          <span class="ruled__score">{{ scoreLabel(row) }}</span>
+          <a [routerLink]="['/submissions', row.submission.id, 'report']" class="ruled__chevron">→</a>
+        </div>
+      }
+    </div>
+    @if (analytics()?.eda; as eda) {
+      <div class="panel mt-6">
+        <h2 class="panel__title">Score summary</h2>
+        <p class="text-muted">
+          n={{ eda.n_students }}, mean={{ eda.mean_score ?? '—' }}, std={{ eda.std_score ?? '—' }}
+        </p>
+        @for (c of eda.correlations; track c.feature_a + c.feature_b) {
+          <p>
+            {{ c.feature_a }} vs {{ c.feature_b }}: r={{ c.pearson_r }},
+            p≈{{ c.p_value_approx }}
+            @if (c.significant_raw && !c.significant_bonferroni) {
+              <span> (spurious before Bonferroni)</span>
+            }
+          </p>
+        }
       </div>
     }
-  </div>
+  }
+
+  @if (activeTab() === 'duplicates') {
+    @if (!analytics()) {
+      <p class="text-muted mt-6">Run DM analytics to detect near-duplicate answers (MinHash + LSH).</p>
+    } @else {
+      <div class="panel mt-6">
+        <h2 class="panel__title">LSH metrics</h2>
+        @for (m of analytics()!.lsh_metrics; track m.question_id) {
+          <p>
+            {{ m.question_id }}: candidates={{ m.lsh_candidates }}, similar={{ m.brute_similar_pairs }},
+            FP={{ m.false_positives }}, FN={{ m.false_negatives }}
+          </p>
+        }
+      </div>
+      <div class="ruled">
+        @for (pair of analytics()!.lsh_pairs; track pair.submission_id_a + pair.submission_id_b + pair.question_id) {
+          <div class="ruled__row">
+            <span class="ruled__primary">{{ pair.question_id }}</span>
+            <span class="ruled__secondary">
+              {{ pair.roll_a || pair.submission_id_a }} ↔ {{ pair.roll_b || pair.submission_id_b }}
+              · Jaccard {{ pair.jaccard }}
+              @if (pair.cosine !== null) {
+                · Cosine {{ pair.cosine }}
+              }
+            </span>
+          </div>
+        } @empty {
+          <p class="text-muted mt-6">No near-duplicate pairs above threshold.</p>
+        }
+      </div>
+      @if (analytics()!.pagerank.length) {
+        <div class="panel mt-6">
+          <h2 class="panel__title">Copy-cluster centrality (PageRank)</h2>
+          @for (p of analytics()!.pagerank; track p.submission_id) {
+            <p>{{ p.roll_number || p.submission_id }}: {{ p.score }}</p>
+          }
+        </div>
+      }
+    }
+  }
+
+  @if (activeTab() === 'clusters') {
+    @if (!analytics()) {
+      <p class="text-muted mt-6">Run DM analytics to cluster answer embeddings.</p>
+    } @else {
+      <p class="text-muted mt-6">Chosen k={{ analytics()!.chosen_k }}</p>
+      <div class="ruled">
+        @for (row of detail()!.rows; track row.submission.id; let i = $index) {
+          <div class="ruled__row" [attr.data-cluster]="clusterLabel(row)">
+            <span class="ruled__index">{{ i + 1 }}</span>
+            <span class="ruled__primary">Roll {{ row.submission.roll_number || '(unreadable)' }}</span>
+            <span class="ruled__secondary">{{ clusterLabel(row) || '—' }}</span>
+            <span class="ruled__score">{{ scoreLabel(row) }}</span>
+          </div>
+        }
+      </div>
+      @if (analytics()!.elbow.length) {
+        <div class="panel mt-6">
+          <h2 class="panel__title">Elbow (inertia)</h2>
+          @for (e of analytics()!.elbow; track e.k) {
+            <p>k={{ e.k }} → {{ e.inertia }}</p>
+          }
+        </div>
+      }
+    }
+  }
+
+  @if (activeTab() === 'patterns') {
+    @if (!analytics()) {
+      <p class="text-muted mt-6">Run DM analytics to mine frequent wrong-answer patterns.</p>
+    } @else {
+      <div class="panel mt-6">
+        <h2 class="panel__title">Frequent itemsets ({{ analytics()!.itemsets.method }})</h2>
+        @for (item of analytics()!.itemsets.frequent_itemsets; track item.items.join(',')) {
+          <p>{{ item.items.join(', ') }} — support {{ item.support }} (n={{ item.count }})</p>
+        } @empty {
+          <p class="text-muted">No frequent itemsets at the current support threshold.</p>
+        }
+      </div>
+      <div class="panel mt-6">
+        <h2 class="panel__title">Association rules</h2>
+        @for (rule of analytics()!.itemsets.rules; track rule.antecedent.join(',') + rule.consequent.join(',')) {
+          <p>
+            {{ rule.antecedent.join(', ') }} → {{ rule.consequent.join(', ') }}
+            (conf {{ rule.confidence }}, lift {{ rule.lift }})
+          </p>
+        } @empty {
+          <p class="text-muted">No association rules.</p>
+        }
+      </div>
+    }
+  }
+
+  @if (activeTab() === 'samples') {
+    @if (!analytics()) {
+      <p class="text-muted mt-6">Run DM analytics to draw a reservoir audit sample.</p>
+    } @else {
+      <div class="ruled">
+        @for (s of analytics()!.audit_samples; track s.submission_id + s.question_id) {
+          <div class="ruled__row">
+            <span class="ruled__primary">{{ s.roll_number || s.submission_id }} · {{ s.question_id }}</span>
+            <span class="ruled__secondary">{{ s.answer_text }}</span>
+          </div>
+        } @empty {
+          <p class="text-muted mt-6">No text answers to sample.</p>
+        }
+      </div>
+      @if (analytics()?.warnings?.length) {
+        <div class="panel mt-6">
+          <h2 class="panel__title">Warnings</h2>
+          @for (w of analytics()!.warnings; track w) {
+            <p>{{ w }}</p>
+          }
+        </div>
+      }
+    }
+  }
 }
